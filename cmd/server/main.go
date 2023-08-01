@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -12,67 +11,41 @@ import (
 type gauge float64
 type counter int64
 
-var metricNames = []string{
-	"Alloc",
-	"BuckHashSys",
-	"Frees",
-	"GCCPUFraction",
-	"GCSys",
-	"HeapAlloc",
-	"HeapIdle",
-	"HeapInuse",
-	"HeapObjects",
-	"HeapReleased",
-	"HeapSys",
-	"LastGC",
-	"Lookups",
-	"MCacheInuse",
-	"MCacheSys",
-	"MSpanInuse",
-	"MSpanSys",
-	"Mallocs",
-	"NextGC",
-	"NumForcedGC",
-	"NumGC",
-	"OtherSys",
-	"PauseTotalNs",
-	"StackInuse",
-	"StackSys",
-	"Sys",
-	"TotalAlloc",
-}
+//var metricNames = []string{
+//	"Alloc",
+//	"BuckHashSys",
+//	"Frees",
+//	"GCCPUFraction",
+//	"GCSys",
+//	"HeapAlloc",
+//	"HeapIdle",
+//	"HeapInuse",
+//	"HeapObjects",
+//	"HeapReleased",
+//	"HeapSys",
+//	"LastGC",
+//	"Lookups",
+//	"MCacheInuse",
+//	"MCacheSys",
+//	"MSpanInuse",
+//	"MSpanSys",
+//	"Mallocs",
+//	"NextGC",
+//	"NumForcedGC",
+//	"NumGC",
+//	"OtherSys",
+//	"PauseTotalNs",
+//	"StackInuse",
+//	"StackSys",
+//	"Sys",
+//	"TotalAlloc",
+//}
 
 type MemStorage struct {
-	Alloc         gauge
-	BuckHashSys   gauge
-	Frees         gauge
-	GCCPUFraction gauge
-	GCSys         gauge
-	HeapAlloc     gauge
-	HeapIdle      gauge
-	HeapInuse     gauge
-	HeapObjects   gauge
-	HeapReleased  gauge
-	HeapSys       gauge
-	LastGC        gauge
-	Lookups       gauge
-	MCacheInuse   gauge
-	MCacheSys     gauge
-	MSpanInuse    gauge
-	MSpanSys      gauge
-	Mallocs       gauge
-	NextGC        gauge
-	NumForcedGC   gauge
-	NumGC         gauge
-	OtherSys      gauge
-	PauseTotalNs  gauge
-	StackInuse    gauge
-	StackSys      gauge
-	Sys           gauge
-	TotalAlloc    gauge
-	RandValue     gauge
-	PollCount     counter
+	Metrics   map[string]gauge
+	PollCount counter
 }
+
 type updateParse struct {
 	metricType string
 	metricName string
@@ -82,6 +55,7 @@ type updateParse struct {
 var stor MemStorage
 
 func main() {
+	stor.setupMetric()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/update/", getMetrics)
 	err := http.ListenAndServe("localhost:8080", mux)
@@ -97,7 +71,7 @@ func getMetrics(res http.ResponseWriter, req *http.Request) {
 	}
 	url := strings.Split(req.URL.String(), "/")
 	if len(url) < 5 {
-		http.Error(res, "Bad url", http.StatusBadRequest)
+		http.Error(res, "Bad url", http.StatusNotFound)
 		return
 	}
 	var updateUrl updateParse
@@ -109,11 +83,15 @@ func getMetrics(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Wrong metric type or empty value", http.StatusBadRequest)
 		return
 	}
-	if req.Header.Get("Content-type") != "text/plain" {
-		http.Error(res, "Content type should be text/plain", http.StatusBadRequest)
-		return
-	}
-	if !checkMetricName(updateUrl.metricName, metricNames) {
+	//if req.Header.Get("Content-type") != "text/plain" {
+	//	http.Error(res, "Content type should be text/plain", http.StatusBadRequest)
+	//	return
+	//}
+	//if !checkMetricName(updateUrl.metricName, metricNames) {
+	//	http.Error(res, "Wrong metric name", http.StatusBadRequest)
+	//	return
+	//}
+	if _, err := strconv.ParseFloat(updateUrl.metricVal, 64); err != nil {
 		http.Error(res, "Wrong metric name", http.StatusBadRequest)
 		return
 	}
@@ -127,28 +105,42 @@ func getMetrics(res http.ResponseWriter, req *http.Request) {
 	fmt.Println(stor)
 }
 
-func checkMetricName(metricName string, metricsList []string) bool {
-	for _, val := range metricsList {
-		if strings.ToUpper(metricName) == strings.ToUpper(val) {
-			return true
-		}
-	}
-	return false
-}
+//func checkMetricName(metricName string, metricsList []string) bool {
+//	for _, val := range metricsList {
+//		if strings.ToUpper(metricName) == strings.ToUpper(val) {
+//			return true
+//		}
+//	}
+//	return false
+//}
+
+//func (m *MemStorage) setMetric(metricName string, metricValue string) error {
+//	for i := 0; i < len(metricNames); i++ {
+//		if strings.ToUpper(metricNames[i]) == strings.ToUpper(metricName) {
+//			flt, err := strconv.ParseFloat(metricValue, 64)
+//			if err != nil {
+//				return fmt.Errorf("can't convert to float64 %e", err)
+//			}
+//			m.PollCount += 1
+//			m.Metrics[metricNames[i]] = gauge(flt)
+//		}
+//	}
+//	return nil
+//}
 
 func (m *MemStorage) setMetric(metricName string, metricValue string) error {
-	for i := 0; i < len(metricNames); i++ {
-		if strings.ToUpper(metricNames[i]) == strings.ToUpper(metricName) {
-			field := reflect.ValueOf(m).Elem().FieldByName(metricNames[i])
-			if field.CanSet() {
-				flt, err := strconv.ParseFloat(metricValue, 64)
-				if err != nil {
-					return fmt.Errorf("can't convert to float64", err)
-				}
-				m.PollCount += 1
-				field.SetFloat(flt)
-			}
-		}
+	flt, err := strconv.ParseFloat(metricValue, 64)
+	if err != nil {
+		return fmt.Errorf("can't convert to float64 %e", err)
 	}
+	m.PollCount += 1
+	m.Metrics[metricName] = gauge(flt)
 	return nil
+}
+
+func (m *MemStorage) setupMetric() {
+	m.Metrics = make(map[string]gauge)
+	//for _, val := range metrics {
+	//	m.Metrics[val] = 0
+	//}
 }
