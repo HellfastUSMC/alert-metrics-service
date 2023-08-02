@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/storage"
 	"net/http"
 	"strconv"
@@ -20,15 +19,13 @@ func GetMetrics(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	updateUrl := storage.UpdateParse{}
-	updateUrl.MetricType = url[2]
-	updateUrl.MetricName = url[3]
-	updateUrl.MetricVal = url[4]
+	updateUrl.MetricType, updateUrl.MetricName, updateUrl.MetricVal = url[2], url[3], url[4]
 	if strings.ToUpper(updateUrl.MetricType) != "GAUGE" && strings.ToUpper(updateUrl.MetricType) != "COUNTER" || updateUrl.MetricVal == "" {
 		http.Error(res, "Wrong metric type or empty value", http.StatusBadRequest)
 		return
 	}
 	if _, err := strconv.ParseFloat(updateUrl.MetricVal, 64); err != nil {
-		http.Error(res, "Wrong metric name", http.StatusBadRequest)
+		http.Error(res, "Can't parse metric value", http.StatusBadRequest)
 		return
 	}
 	if err := storage.Store.SetMetric(updateUrl.MetricName, updateUrl.MetricVal); err != nil {
@@ -38,5 +35,4 @@ func GetMetrics(res http.ResponseWriter, req *http.Request) {
 	res.Header().Add("content-type", "text/plain; charset=utf-8")
 	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
 	res.WriteHeader(200)
-	fmt.Println(storage.Store)
 }

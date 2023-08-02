@@ -9,8 +9,8 @@ import (
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/update/", handlers.GetMetrics)
-	err := http.ListenAndServe("localhost:8088", mux)
+	err := http.ListenAndServe("localhost:8080", mux)
 	if err != nil {
-		fmt.Println(fmt.Errorf("there's an error in server starting - %e", err))
+		fmt.Printf("there's an error in server starting - %e", err)
 	}
 }

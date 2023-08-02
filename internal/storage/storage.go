@@ -106,7 +106,7 @@ func (m *Metrics) RenewMetrics() {
 	m.RandomValue = Gauge(rand.Float64())
 }
 
-func (m *Metrics) SendMetrics(urlAndPort string) {
+func (m *Metrics) SendMetrics(hostAndPort string) error {
 	fieldsValues := reflect.ValueOf(m).Elem()
 	fieldsTypes := reflect.TypeOf(m).Elem()
 	for i := 0; i < fieldsValues.NumField()-2; i++ {
@@ -114,13 +114,13 @@ func (m *Metrics) SendMetrics(urlAndPort string) {
 		r, err := http.NewRequest(
 			http.MethodPost,
 			fmt.Sprintf("%s/update/%s/%s/%v",
-				urlAndPort,
+				hostAndPort,
 				fieldType,
 				fieldsTypes.Field(i).Name,
 				fieldsValues.Field(i)),
 			nil)
 		if err != nil {
-			fmt.Printf("there's an error in creating send metric request: type - %s, name - %s, value - %v, error - %e\n",
+			return fmt.Errorf("there's an error in creating send metric request: type - %s, name - %s, value - %v, error - %e\n",
 				fieldType,
 				fieldsTypes.Field(i).Name,
 				fieldsValues.Field(i),
@@ -132,8 +132,9 @@ func (m *Metrics) SendMetrics(urlAndPort string) {
 		client := &http.Client{}
 		res, err := client.Do(r)
 		if err != nil {
-			fmt.Printf("there's an error in sending request: %e\n", err)
+			return fmt.Errorf("there's an error in sending request: %e\n", err)
 		}
 		defer res.Body.Close()
 	}
+	return nil
 }

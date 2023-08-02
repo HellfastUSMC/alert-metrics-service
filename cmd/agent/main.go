@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/storage"
 	"time"
 )
@@ -17,7 +18,10 @@ func main() {
 				stats.RenewMetrics()
 			}
 			if i%conf.ReportInterval == 0 {
-				stats.SendMetrics("http://localhost:8088")
+				err := stats.SendMetrics("http://localhost:8080")
+				if err != nil {
+					fmt.Printf("there's an error in sending metrics - %e", err)
+				}
 			}
 			time.Sleep(time.Duration(1) * time.Second)
 		}
