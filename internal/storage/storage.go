@@ -14,7 +14,8 @@ type Gauge float64
 type Counter int64
 
 type MemStorage struct {
-	Metrics   map[string]Gauge
+	Gauge     map[string]Gauge
+	Counter   map[string]Counter
 	PollCount Counter
 }
 
@@ -24,7 +25,7 @@ type UpdateParse struct {
 	MetricVal  string
 }
 
-var Store = MemStorage{Metrics: map[string]Gauge{}}
+var Store = MemStorage{Gauge: map[string]Gauge{}, Counter: map[string]Counter{}}
 
 type SysConfig struct {
 	PollInterval   int64
@@ -96,16 +97,6 @@ func (m *Metrics) RenewMetrics() {
 	m.RandomValue = Gauge(rand.Float64())
 }
 
-func (m *MemStorage) SetMetric(metricName string, metricValue string) error {
-	flt, err := strconv.ParseFloat(metricValue, 64)
-	if err != nil {
-		return fmt.Errorf("can't convert to float64 %e", err)
-	}
-	m.PollCount += 1
-	m.Metrics[metricName] = Gauge(flt)
-	return nil
-}
-
 func (m *Metrics) SendMetrics(hostAndPort string) error {
 	fieldsValues := reflect.ValueOf(m).Elem()
 	fieldsTypes := reflect.TypeOf(m).Elem()
@@ -139,11 +130,45 @@ func (m *Metrics) SendMetrics(hostAndPort string) error {
 	return nil
 }
 
-func (m *Metrics) GetValueByName(metricName string) {
-	field := reflect.ValueOf(m).Elem().FieldByName(metricName)
-	fmt.Println(field)
-	//if len(field) == 0 {
-	//	return fmt.Errorf("'there's no metric width this name - %s", metricName)
-	//}
-	//return nil
+func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue string) error {
+	if strings.ToUpper(metricType) == "GAUGE" {
+		flt, err := strconv.ParseFloat(metricValue, 64)
+		if err != nil {
+			return fmt.Errorf("can't convert to float64 %e", err)
+		}
+		m.PollCount += 1
+		m.Gauge[metricName] = Gauge(flt)
+		return nil
+	} else if strings.ToUpper(metricType) == "COUNTER" {
+		integ, err := strconv.ParseInt(metricValue, 10, 64)
+		if err != nil {
+			return fmt.Errorf("can't convert to int64 %e", err)
+		}
+		m.PollCount += 1
+		if _, ok := m.Counter[metricName]; !ok {
+			m.Counter[metricName] = Counter(integ)
+			return nil
+		} else {
+			m.Counter[metricName] += Counter(integ)
+			return nil
+		}
+	}
+	return fmt.Errorf("metric with type %s not found", metricType)
+}
+
+func (m *MemStorage) GetValueByName(metricType string, metricName string) (string, error) {
+	if strings.ToUpper(metricType) == "GAUGE" {
+		if val, ok := m.Gauge[metricName]; !ok {
+			return "", fmt.Errorf("there's no metric called %s", metricName)
+		} else {
+			return strconv.FormatFloat(float64(val), 'f', -1, 64), nil
+		}
+	} else if strings.ToUpper(metricType) == "COUNTER" {
+		if val, ok := m.Counter[metricName]; !ok {
+			return "", fmt.Errorf("there's no metric called %s", metricName)
+		} else {
+			return strconv.FormatInt(int64(val), 10), nil
+		}
+	}
+	return "", fmt.Errorf("metric with type %s not found", metricType)
 }
