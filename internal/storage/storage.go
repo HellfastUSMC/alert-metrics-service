@@ -63,16 +63,6 @@ type Metrics struct {
 	RandomValue   Gauge
 }
 
-func (m *MemStorage) SetMetric(metricName string, metricValue string) error {
-	flt, err := strconv.ParseFloat(metricValue, 64)
-	if err != nil {
-		return fmt.Errorf("can't convert to float64 %e", err)
-	}
-	m.PollCount += 1
-	m.Metrics[metricName] = Gauge(flt)
-	return nil
-}
-
 func (m *Metrics) RenewMetrics() {
 	var memstat runtime.MemStats
 	runtime.ReadMemStats(&memstat)
@@ -106,6 +96,16 @@ func (m *Metrics) RenewMetrics() {
 	m.RandomValue = Gauge(rand.Float64())
 }
 
+func (m *MemStorage) SetMetric(metricName string, metricValue string) error {
+	flt, err := strconv.ParseFloat(metricValue, 64)
+	if err != nil {
+		return fmt.Errorf("can't convert to float64 %e", err)
+	}
+	m.PollCount += 1
+	m.Metrics[metricName] = Gauge(flt)
+	return nil
+}
+
 func (m *Metrics) SendMetrics(hostAndPort string) error {
 	fieldsValues := reflect.ValueOf(m).Elem()
 	fieldsTypes := reflect.TypeOf(m).Elem()
@@ -137,4 +137,13 @@ func (m *Metrics) SendMetrics(hostAndPort string) error {
 		defer res.Body.Close()
 	}
 	return nil
+}
+
+func (m *Metrics) GetValueByName(metricName string) {
+	field := reflect.ValueOf(m).Elem().FieldByName(metricName)
+	fmt.Println(field)
+	//if len(field) == 0 {
+	//	return fmt.Errorf("'there's no metric width this name - %s", metricName)
+	//}
+	//return nil
 }

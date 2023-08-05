@@ -2,11 +2,31 @@ package handlers
 
 import (
 	"github.com/HellfastUSMC/alert-metrics-service/internal/storage"
+	"github.com/go-chi/chi/v5"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 )
+
+func ReturnMetric(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	url := strings.Split(req.URL.String(), "/")
+	if len(url) < 5 {
+		http.Error(res, "Bad url", http.StatusNotFound)
+		return
+	}
+	updateUrl := storage.UpdateParse{}
+	updateUrl.MetricType, updateUrl.MetricName = chi.URLParam(req, "metricType"), chi.URLParam(req, "metricName")
+	if strings.ToUpper(updateUrl.MetricType) != "GAUGE" && strings.ToUpper(updateUrl.MetricType) != "COUNTER" {
+		http.Error(res, "Wrong metric type", http.StatusBadRequest)
+		return
+	}
+
+}
 
 func GetMetrics(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
@@ -19,7 +39,7 @@ func GetMetrics(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	updateUrl := storage.UpdateParse{}
-	updateUrl.MetricType, updateUrl.MetricName, updateUrl.MetricVal = url[2], url[3], url[4]
+	updateUrl.MetricType, updateUrl.MetricName, updateUrl.MetricVal = chi.URLParam(req, "metricType"), chi.URLParam(req, "metricName"), chi.URLParam(req, "metricValue")
 	if strings.ToUpper(updateUrl.MetricType) != "GAUGE" && strings.ToUpper(updateUrl.MetricType) != "COUNTER" || updateUrl.MetricVal == "" {
 		http.Error(res, "Wrong metric type or empty value", http.StatusBadRequest)
 		return
