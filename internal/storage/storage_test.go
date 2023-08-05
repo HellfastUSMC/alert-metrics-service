@@ -217,7 +217,7 @@ func TestMemStorage_GetValueByName(t *testing.T) {
 			name:    "Test normal behaviour",
 			fields:  fields{Metrics: map[string]Gauge{"Alloc": 797.5}},
 			args:    args{metricName: "Alloc"},
-			want:    "797.500000",
+			want:    "797.5",
 			wantErr: false,
 		},
 		{
