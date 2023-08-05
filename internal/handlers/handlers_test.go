@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -106,7 +105,10 @@ func TestGetMetrics(t *testing.T) {
 			}
 			res, err := client.Do(req)
 			if err != nil {
-				fmt.Println(err)
+				t.Error(err)
+			}
+			if err := res.Body.Close(); err != nil {
+				t.Error(err)
 			}
 			assert.Equal(t, res.StatusCode, tt.want.code)
 		},
@@ -177,7 +179,10 @@ func TestGetAllStats(t *testing.T) {
 			}
 			res, err := client.Do(req)
 			if err != nil {
-				fmt.Println(err)
+				t.Error(err)
+			}
+			if err := res.Body.Close(); err != nil {
+				t.Error(err)
 			}
 			assert.Equal(t, res.StatusCode, tt.want.code)
 		})
@@ -249,10 +254,12 @@ func TestReturnMetric(t *testing.T) {
 			}
 			res, err := client.Do(req)
 			if err != nil {
-				fmt.Println(err)
+				t.Error(err)
 			}
 			body, _ := io.ReadAll(res.Body)
-			defer res.Body.Close()
+			if err := res.Body.Close(); err != nil {
+				t.Error(err)
+			}
 			assert.Equal(t, res.StatusCode, tt.want.code)
 			if tt.want.wantBody {
 				assert.Equal(t, string(body), tt.want.body)

@@ -101,7 +101,7 @@ func (m *Metrics) SendMetrics(hostAndPort string) error {
 	fieldsValues := reflect.ValueOf(m).Elem()
 	fieldsTypes := reflect.TypeOf(m).Elem()
 	for i := 0; i < fieldsValues.NumField()-2; i++ {
-		fieldType := strings.Replace(fmt.Sprintf("%s", fieldsTypes.Field(i).Type), "storage.", "", -1)
+		fieldType := strings.Replace(fieldsTypes.Field(i).Type.String(), "storage.", "", -1)
 		r, err := http.NewRequest(
 			http.MethodPost,
 			fmt.Sprintf("%s/update/%s/%s/%v",
@@ -111,7 +111,7 @@ func (m *Metrics) SendMetrics(hostAndPort string) error {
 				fieldsValues.Field(i)),
 			nil)
 		if err != nil {
-			return fmt.Errorf("there's an error in creating send metric request: type - %s, name - %s, value - %v, error - %e\n",
+			return fmt.Errorf("there's an error in creating send metric request: type - %s, name - %s, value - %v, error - %e",
 				fieldType,
 				fieldsTypes.Field(i).Name,
 				fieldsValues.Field(i),
@@ -123,7 +123,7 @@ func (m *Metrics) SendMetrics(hostAndPort string) error {
 		client := &http.Client{}
 		res, err := client.Do(r)
 		if err != nil {
-			return fmt.Errorf("there's an error in sending request: %e\n", err)
+			return fmt.Errorf("there's an error in sending request: %e", err)
 		}
 		defer res.Body.Close()
 	}

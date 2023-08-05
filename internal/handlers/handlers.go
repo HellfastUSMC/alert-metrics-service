@@ -20,13 +20,13 @@ func ReturnMetric(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Bad url", http.StatusNotFound)
 		return
 	}
-	updateUrl := storage.UpdateParse{}
-	updateUrl.MetricType, updateUrl.MetricName = chi.URLParam(req, "metricType"), chi.URLParam(req, "metricName")
-	if strings.ToUpper(updateUrl.MetricType) != "GAUGE" && strings.ToUpper(updateUrl.MetricType) != "COUNTER" {
+	updateURL := storage.UpdateParse{}
+	updateURL.MetricType, updateURL.MetricName = chi.URLParam(req, "metricType"), chi.URLParam(req, "metricName")
+	if strings.ToUpper(updateURL.MetricType) != "GAUGE" && strings.ToUpper(updateURL.MetricType) != "COUNTER" {
 		http.Error(res, "Wrong metric type", http.StatusBadRequest)
 		return
 	}
-	val, err := storage.Store.GetValueByName(updateUrl.MetricType, updateUrl.MetricName)
+	val, err := storage.Store.GetValueByName(updateURL.MetricType, updateURL.MetricName)
 	if err != nil {
 		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusNotFound)
 	}
@@ -44,25 +44,25 @@ func GetMetrics(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Bad url", http.StatusNotFound)
 		return
 	}
-	updateUrl := storage.UpdateParse{}
-	updateUrl.MetricType, updateUrl.MetricName, updateUrl.MetricVal = chi.URLParam(req, "metricType"), chi.URLParam(req, "metricName"), chi.URLParam(req, "metricValue")
-	if strings.ToUpper(updateUrl.MetricType) != "GAUGE" && strings.ToUpper(updateUrl.MetricType) != "COUNTER" || updateUrl.MetricVal == "" {
+	updateURL := storage.UpdateParse{}
+	updateURL.MetricType, updateURL.MetricName, updateURL.MetricVal = chi.URLParam(req, "metricType"), chi.URLParam(req, "metricName"), chi.URLParam(req, "metricValue")
+	if strings.ToUpper(updateURL.MetricType) != "GAUGE" && strings.ToUpper(updateURL.MetricType) != "COUNTER" || updateURL.MetricVal == "" {
 		http.Error(res, "Wrong metric type or empty value", http.StatusBadRequest)
 		return
 	}
-	if strings.ToUpper(updateUrl.MetricType) == "GAUGE" {
-		if _, err := strconv.ParseFloat(updateUrl.MetricVal, 64); err != nil {
+	if strings.ToUpper(updateURL.MetricType) == "GAUGE" {
+		if _, err := strconv.ParseFloat(updateURL.MetricVal, 64); err != nil {
 			http.Error(res, "Can't parse metric value", http.StatusBadRequest)
 			return
 		}
 	}
-	if strings.ToUpper(updateUrl.MetricType) == "COUNTER" {
-		if _, err := strconv.ParseInt(updateUrl.MetricVal, 10, 64); err != nil {
+	if strings.ToUpper(updateURL.MetricType) == "COUNTER" {
+		if _, err := strconv.ParseInt(updateURL.MetricVal, 10, 64); err != nil {
 			http.Error(res, "Can't parse metric value", http.StatusBadRequest)
 			return
 		}
 	}
-	if err := storage.Store.SetMetric(updateUrl.MetricType, updateUrl.MetricName, updateUrl.MetricVal); err != nil {
+	if err := storage.Store.SetMetric(updateURL.MetricType, updateURL.MetricName, updateURL.MetricVal); err != nil {
 		http.Error(res, fmt.Sprintf("Error occurred when converting to float64 or int64 - %e", err), http.StatusInternalServerError)
 		return
 	}
