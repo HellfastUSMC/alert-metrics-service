@@ -217,7 +217,7 @@ func TestReturnMetric(t *testing.T) {
 			},
 			want: want{
 				code:     http.StatusOK,
-				body:     "testMetric: 100.000000",
+				body:     "100",
 				wantBody: true,
 			},
 		},
