@@ -7,9 +7,6 @@ import (
 	"time"
 )
 
-func init() {
-}
-
 func main() {
 	flags.ParseAgentFlags()
 	var stats storage.Metrics
@@ -23,7 +20,7 @@ func main() {
 				stats.RenewMetrics()
 			}
 			if i%conf.ReportInterval == 0 {
-				err := stats.SendMetrics(flags.AgentServerAddr)
+				err := stats.SendMetrics("http://" + flags.AgentServerAddr)
 				if err != nil {
 					fmt.Printf("there's an error in sending metrics - %e", err)
 				}
