@@ -2,15 +2,20 @@ package main
 
 import (
 	"fmt"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/flags"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/storage"
 	"time"
 )
 
+func init() {
+}
+
 func main() {
+	flags.ParseAgentFlags()
 	var stats storage.Metrics
 	conf := storage.SysConfig{
-		PollInterval:   2,
-		ReportInterval: 10,
+		PollInterval:   flags.AgentPollInterval,
+		ReportInterval: flags.AgentReportInterval,
 	}
 	for {
 		for i := int64(1); i <= conf.ReportInterval; i++ {
@@ -18,7 +23,7 @@ func main() {
 				stats.RenewMetrics()
 			}
 			if i%conf.ReportInterval == 0 {
-				err := stats.SendMetrics("http://localhost:8080")
+				err := stats.SendMetrics(flags.AgentServerAddr)
 				if err != nil {
 					fmt.Printf("there's an error in sending metrics - %e", err)
 				}

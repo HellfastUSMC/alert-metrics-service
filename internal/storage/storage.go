@@ -104,7 +104,7 @@ func (m *Metrics) SendMetrics(hostAndPort string) error {
 		fieldType := strings.Replace(fieldsTypes.Field(i).Type.String(), "storage.", "", -1)
 		r, err := http.NewRequest(
 			http.MethodPost,
-			fmt.Sprintf("%s/update/%s/%s/%v",
+			fmt.Sprintf("http://%s/update/%s/%s/%v",
 				hostAndPort,
 				fieldType,
 				fieldsTypes.Field(i).Name,
