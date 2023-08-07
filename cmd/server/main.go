@@ -23,14 +23,15 @@ func main() {
 		conf.ServerAddress = flags.ServerAddr
 	}
 	fmt.Printf("Server address: %s\n", conf.ServerAddress)
+	var Store = storage.MemStorage{Gauge: map[string]storage.Gauge{}, Counter: map[string]storage.Counter{}}
 	router := chi.NewRouter()
 	router.Route("/", func(router chi.Router) {
-		router.Get("/", handlers.GetAllStats)
+		router.Get("/", handlers.GetAllStats(&Store))
 		router.Route("/value", func(router chi.Router) {
-			router.Get("/{metricType}/{metricName}", handlers.ReturnMetric)
+			router.Get("/{metricType}/{metricName}", handlers.ReturnMetric(&Store))
 		})
 		router.Route("/update", func(router chi.Router) {
-			router.Post("/{metricType}/{metricName}/{metricValue}", handlers.GetMetrics)
+			router.Post("/{metricType}/{metricName}/{metricValue}", handlers.GetMetrics(&Store))
 		})
 	})
 	err := http.ListenAndServe(conf.ServerAddress, router)

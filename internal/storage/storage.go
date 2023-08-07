@@ -25,7 +25,16 @@ type UpdateParse struct {
 	MetricVal  string
 }
 
-var Store = MemStorage{Gauge: map[string]Gauge{}, Counter: map[string]Counter{}}
+type MemStorekeeper interface {
+	SetMetric(string, string, string) error
+	GetValueByName(string, string) (string, error)
+	GetAllData() string
+}
+
+type ServerHandlers interface {
+}
+
+//var Store = MemStorage{Gauge: map[string]Gauge{}, Counter: map[string]Counter{}}
 
 type SysConfig struct {
 	PollInterval   int64  `env:"POLL_INTERVAL"`
@@ -172,4 +181,15 @@ func (m *MemStorage) GetValueByName(metricType string, metricName string) (strin
 		}
 	}
 	return "", fmt.Errorf("metric with type %s not found", metricType)
+}
+
+func (m *MemStorage) GetAllData() string {
+	allStats := []string{}
+	for key, val := range m.Gauge {
+		allStats = append(allStats, fmt.Sprintf("%s: %s", key, fmt.Sprintf("%f", val)))
+	}
+	for key, val := range m.Counter {
+		allStats = append(allStats, fmt.Sprintf("%s: %s", key, fmt.Sprintf("%d", val)))
+	}
+	return strings.Join(allStats, "\n")
 }
