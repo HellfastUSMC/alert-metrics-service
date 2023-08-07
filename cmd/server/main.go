@@ -8,17 +8,18 @@ import (
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
 	"net/http"
+	"os"
 )
 
 func main() {
 	conf := storage.SysConfig{}
 	parseErr := env.Parse(&conf)
+	fmt.Println(os.Getenv("ADDRESS"))
 	if parseErr != nil {
 		fmt.Println(parseErr)
 	}
 	flags.ParseServerAddr()
 	if conf.ServerAddress == "" {
-		fmt.Println("getting server addr from flag...")
 		conf.ServerAddress = flags.ServerAddr
 	}
 	fmt.Printf("Server address: %s\n", conf.ServerAddress)
@@ -32,7 +33,7 @@ func main() {
 			router.Post("/{metricType}/{metricName}/{metricValue}", handlers.GetMetrics)
 		})
 	})
-	err := http.ListenAndServe(flags.ServerAddr, router)
+	err := http.ListenAndServe(conf.ServerAddress, router)
 	if err != nil {
 		fmt.Printf("there's an error in server starting - %e", err)
 	}

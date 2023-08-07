@@ -16,15 +16,12 @@ func main() {
 	}
 	flags.ParseAgentFlags()
 	if conf.ServerAddress == "" {
-		fmt.Println("getting server addr from flag...")
 		conf.ServerAddress = flags.AgentServerAddr
 	}
 	if conf.PollInterval == 0 {
-		fmt.Println("getting poll int from flag...")
 		conf.PollInterval = flags.AgentPollInterval
 	}
 	if conf.ReportInterval == 0 {
-		fmt.Println("getting report int from flag...")
 		conf.ReportInterval = flags.AgentReportInterval
 	}
 	fmt.Printf("Server addr: %s, poll interval: %d, report interval: %d\n", conf.ServerAddress, conf.PollInterval, conf.ReportInterval)
