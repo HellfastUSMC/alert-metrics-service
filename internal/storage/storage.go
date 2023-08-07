@@ -28,8 +28,9 @@ type UpdateParse struct {
 var Store = MemStorage{Gauge: map[string]Gauge{}, Counter: map[string]Counter{}}
 
 type SysConfig struct {
-	PollInterval   int64
-	ReportInterval int64
+	PollInterval   int64  `env:"POLL_INTERVAL"`
+	ReportInterval int64  `env:"REPORT_INTERVAL"`
+	ServerAddress  string `env:"ADDRESS"`
 }
 
 type Metrics struct {

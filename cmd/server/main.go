@@ -1,20 +1,27 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/flags"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/handlers"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/storage"
+	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
 	"net/http"
 )
 
-func init() {
-	flags.ParseServerAddr()
-}
-
 func main() {
-	flag.Parse()
+	conf := storage.SysConfig{}
+	parseErr := env.Parse(&conf)
+	if parseErr != nil {
+		fmt.Println(parseErr)
+	}
+	flags.ParseServerAddr()
+	if conf.ServerAddress == "" {
+		fmt.Println("getting server addr from flag...")
+		conf.ServerAddress = flags.ServerAddr
+	}
+	fmt.Printf("Server address: %s\n", conf.ServerAddress)
 	router := chi.NewRouter()
 	router.Route("/", func(router chi.Router) {
 		router.Get("/", handlers.GetAllStats)
@@ -29,5 +36,5 @@ func main() {
 	if err != nil {
 		fmt.Printf("there's an error in server starting - %e", err)
 	}
-	fmt.Println("Server started at " + flags.ServerAddr)
+	fmt.Println("Server started at " + conf.ServerAddress)
 }
