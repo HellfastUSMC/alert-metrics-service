@@ -12,20 +12,13 @@ import (
 
 func TestGetMetrics(t *testing.T) {
 	type args struct {
-		url       string
-		reqMethod string
+		url         string
+		reqMethod   string
+		storageImpl storage.MemStorage
 	}
 	type want struct {
 		code int
 	}
-	router := chi.NewRouter()
-
-	router.Route("/update", func(router chi.Router) {
-		router.Post("/{metricType}/{metricName}/{metricValue}", GetMetrics)
-	})
-
-	ts := httptest.NewServer(router)
-	defer ts.Close()
 	tests := []struct {
 		name string
 		args args
@@ -36,6 +29,11 @@ func TestGetMetrics(t *testing.T) {
 			args: args{
 				url:       "/update/gauge/Alloc/777.5",
 				reqMethod: http.MethodPost,
+				storageImpl: storage.MemStorage{
+					Gauge:     map[string]storage.Gauge{},
+					Counter:   map[string]storage.Counter{},
+					PollCount: 0,
+				},
 			},
 			want: want{
 				code: 200,
@@ -46,6 +44,11 @@ func TestGetMetrics(t *testing.T) {
 			args: args{
 				url:       "/update/ga1uge/Alloc/777.5",
 				reqMethod: http.MethodPost,
+				storageImpl: storage.MemStorage{
+					Gauge:     map[string]storage.Gauge{},
+					Counter:   map[string]storage.Counter{},
+					PollCount: 0,
+				},
 			},
 			want: want{
 				code: 400,
@@ -56,6 +59,11 @@ func TestGetMetrics(t *testing.T) {
 			args: args{
 				url:       "/update/gauge/777.5",
 				reqMethod: http.MethodPost,
+				storageImpl: storage.MemStorage{
+					Gauge:     map[string]storage.Gauge{},
+					Counter:   map[string]storage.Counter{},
+					PollCount: 0,
+				},
 			},
 			want: want{
 				code: 404,
@@ -66,6 +74,11 @@ func TestGetMetrics(t *testing.T) {
 			args: args{
 				url:       "/update/gauge/Alloc/agb",
 				reqMethod: http.MethodPost,
+				storageImpl: storage.MemStorage{
+					Gauge:     map[string]storage.Gauge{},
+					Counter:   map[string]storage.Counter{},
+					PollCount: 0,
+				},
 			},
 			want: want{
 				code: 400,
@@ -76,6 +89,11 @@ func TestGetMetrics(t *testing.T) {
 			args: args{
 				url:       "/update/gauge/Alloc/",
 				reqMethod: http.MethodPost,
+				storageImpl: storage.MemStorage{
+					Gauge:     map[string]storage.Gauge{},
+					Counter:   map[string]storage.Counter{},
+					PollCount: 0,
+				},
 			},
 			want: want{
 				code: 404,
@@ -86,6 +104,11 @@ func TestGetMetrics(t *testing.T) {
 			args: args{
 				url:       "/update/gauge/Alloc/777.5",
 				reqMethod: http.MethodGet,
+				storageImpl: storage.MemStorage{
+					Gauge:     map[string]storage.Gauge{},
+					Counter:   map[string]storage.Counter{},
+					PollCount: 0,
+				},
 			},
 			want: want{
 				code: 405,
@@ -94,6 +117,14 @@ func TestGetMetrics(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			router := chi.NewRouter()
+
+			router.Route("/update", func(router chi.Router) {
+				router.Post("/{metricType}/{metricName}/{metricValue}", GetMetrics(&tt.args.storageImpl))
+			})
+
+			ts := httptest.NewServer(router)
+			defer ts.Close()
 			client := ts.Client()
 			req, err := http.NewRequest(
 				tt.args.reqMethod,
@@ -118,18 +149,13 @@ func TestGetMetrics(t *testing.T) {
 
 func TestGetAllStats(t *testing.T) {
 	type args struct {
-		url       string
-		reqMethod string
+		url         string
+		reqMethod   string
+		storageImpl storage.MemStorage
 	}
 	type want struct {
 		code int
 	}
-	router := chi.NewRouter()
-	router.Route("/", func(router chi.Router) {
-		router.Get("/", GetAllStats)
-	})
-	ts := httptest.NewServer(router)
-	defer ts.Close()
 	tests := []struct {
 		name string
 		args args
@@ -140,6 +166,11 @@ func TestGetAllStats(t *testing.T) {
 			args: args{
 				url:       "/",
 				reqMethod: http.MethodGet,
+				storageImpl: storage.MemStorage{
+					Gauge:     map[string]storage.Gauge{},
+					Counter:   map[string]storage.Counter{},
+					PollCount: 0,
+				},
 			},
 			want: want{
 				code: http.StatusOK,
@@ -150,6 +181,11 @@ func TestGetAllStats(t *testing.T) {
 			args: args{
 				url:       "/444",
 				reqMethod: http.MethodGet,
+				storageImpl: storage.MemStorage{
+					Gauge:     map[string]storage.Gauge{},
+					Counter:   map[string]storage.Counter{},
+					PollCount: 0,
+				},
 			},
 			want: want{
 				code: http.StatusNotFound,
@@ -160,6 +196,11 @@ func TestGetAllStats(t *testing.T) {
 			args: args{
 				url:       "/",
 				reqMethod: http.MethodPost,
+				storageImpl: storage.MemStorage{
+					Gauge:     map[string]storage.Gauge{},
+					Counter:   map[string]storage.Counter{},
+					PollCount: 0,
+				},
 			},
 			want: want{
 				code: http.StatusMethodNotAllowed,
@@ -168,6 +209,12 @@ func TestGetAllStats(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			router := chi.NewRouter()
+			router.Route("/", func(router chi.Router) {
+				router.Get("/", GetAllStats(&tt.args.storageImpl))
+			})
+			ts := httptest.NewServer(router)
+			defer ts.Close()
 			client := ts.Client()
 			req, err := http.NewRequest(
 				tt.args.reqMethod,
@@ -193,6 +240,7 @@ func TestReturnMetric(t *testing.T) {
 	type args struct {
 		url         string
 		reqMethod   string
+		storageImpl storage.MemStorage
 		metricName  string
 		metricValue storage.Gauge
 	}
@@ -201,12 +249,6 @@ func TestReturnMetric(t *testing.T) {
 		body     string
 		wantBody bool
 	}
-	router := chi.NewRouter()
-	router.Route("/value", func(router chi.Router) {
-		router.Get("/{metricType}/{metricName}", ReturnMetric)
-	})
-	ts := httptest.NewServer(router)
-	defer ts.Close()
 	tests := []struct {
 		name string
 		args args
@@ -219,6 +261,11 @@ func TestReturnMetric(t *testing.T) {
 				reqMethod:   http.MethodGet,
 				metricName:  "testMetric",
 				metricValue: 100,
+				storageImpl: storage.MemStorage{
+					Gauge:     map[string]storage.Gauge{},
+					Counter:   map[string]storage.Counter{},
+					PollCount: 0,
+				},
 			},
 			want: want{
 				code:     http.StatusOK,
@@ -233,6 +280,11 @@ func TestReturnMetric(t *testing.T) {
 				reqMethod:   http.MethodGet,
 				metricName:  "testMetric",
 				metricValue: 100,
+				storageImpl: storage.MemStorage{
+					Gauge:     map[string]storage.Gauge{},
+					Counter:   map[string]storage.Counter{},
+					PollCount: 0,
+				},
 			},
 			want: want{
 				code:     http.StatusNotFound,
@@ -242,7 +294,13 @@ func TestReturnMetric(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			storage.Store.Gauge[tt.args.metricName] = tt.args.metricValue
+			router := chi.NewRouter()
+			router.Route("/value", func(router chi.Router) {
+				router.Get("/{metricType}/{metricName}", ReturnMetric(&tt.args.storageImpl))
+			})
+			ts := httptest.NewServer(router)
+			defer ts.Close()
+			tt.args.storageImpl.Gauge[tt.args.metricName] = tt.args.metricValue
 			client := ts.Client()
 			req, err := http.NewRequest(
 				tt.args.reqMethod,

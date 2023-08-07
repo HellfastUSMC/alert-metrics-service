@@ -34,8 +34,6 @@ type MemStorekeeper interface {
 type ServerHandlers interface {
 }
 
-//var Store = MemStorage{Gauge: map[string]Gauge{}, Counter: map[string]Counter{}}
-
 type SysConfig struct {
 	PollInterval   int64  `env:"POLL_INTERVAL"`
 	ReportInterval int64  `env:"REPORT_INTERVAL"`
@@ -135,7 +133,10 @@ func (m *Metrics) SendMetrics(hostAndPort string) error {
 		if err != nil {
 			return fmt.Errorf("there's an error in sending request: %e", err)
 		}
-		defer res.Body.Close()
+		err = res.Body.Close()
+		if err != nil {
+			return fmt.Errorf("error in closing res body - %e", err)
+		}
 	}
 	return nil
 }
