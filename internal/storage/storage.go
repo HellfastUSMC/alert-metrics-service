@@ -31,9 +31,6 @@ type MemStorekeeper interface {
 	GetAllData() string
 }
 
-type ServerHandlers interface {
-}
-
 type SysConfig struct {
 	PollInterval   int64  `env:"POLL_INTERVAL"`
 	ReportInterval int64  `env:"REPORT_INTERVAL"`

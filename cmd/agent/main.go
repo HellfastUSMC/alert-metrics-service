@@ -14,17 +14,15 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	flags.ParseAgentFlags()
-	if conf.ServerAddress == "" {
-		conf.ServerAddress = flags.AgentServerAddr
+	if conf.ServerAddress == "" || conf.PollInterval == 0 || conf.ReportInterval == 0 {
+		flags.ParseAgentFlags(&conf)
 	}
-	if conf.PollInterval == 0 {
-		conf.PollInterval = flags.AgentPollInterval
-	}
-	if conf.ReportInterval == 0 {
-		conf.ReportInterval = flags.AgentReportInterval
-	}
-	fmt.Printf("Server addr: %s, poll interval: %d, report interval: %d\n", conf.ServerAddress, conf.PollInterval, conf.ReportInterval)
+	fmt.Printf(
+		"Starting agent with remote server addr: %s, poll interval: %d, report interval: %d\n",
+		conf.ServerAddress,
+		conf.PollInterval,
+		conf.ReportInterval,
+	)
 	var stats storage.Metrics
 	for {
 		for i := int64(1); i <= conf.ReportInterval; i++ {
