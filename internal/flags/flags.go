@@ -3,16 +3,21 @@ package flags
 import (
 	"flag"
 	"fmt"
-	"github.com/HellfastUSMC/alert-metrics-service/internal/storage"
 	"os"
 )
 
-func ParseServerAddr(c *storage.SysConfig) {
+type SysConfig struct {
+	PollInterval   int64  `env:"POLL_INTERVAL"`
+	ReportInterval int64  `env:"REPORT_INTERVAL"`
+	ServerAddress  string `env:"ADDRESS"`
+}
+
+func (c *SysConfig) ParseServerAddr() {
 	flag.StringVar(&c.ServerAddress, "a", "localhost:8080", "Address and port of server")
 	flag.Parse()
 }
 
-func ParseAgentFlags(c *storage.SysConfig) {
+func (c *SysConfig) ParseAgentFlags() {
 	agentFlags := flag.NewFlagSet("agent flags", flag.ExitOnError)
 	agentFlags.StringVar(&c.ServerAddress, "a", "localhost:8080", "Address and port of server")
 	agentFlags.Int64Var(&c.ReportInterval, "r", 10, "Report interval in seconds")
@@ -22,4 +27,12 @@ func ParseAgentFlags(c *storage.SysConfig) {
 		os.Exit(1)
 	}
 
+}
+
+func NewConfig() *SysConfig {
+	return &SysConfig{
+		PollInterval:   0,
+		ReportInterval: 0,
+		ServerAddress:  "",
+	}
 }

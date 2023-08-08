@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/HellfastUSMC/alert-metrics-service/internal/storage"
-	"github.com/go-chi/chi/v5"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/HellfastUSMC/alert-metrics-service/internal/storage"
+	"github.com/go-chi/chi/v5"
 )
 
 func ReturnMetric(sk storage.MemStorekeeper) func(http.ResponseWriter, *http.Request) {

@@ -31,12 +31,6 @@ type MemStorekeeper interface {
 	GetAllData() string
 }
 
-type SysConfig struct {
-	PollInterval   int64  `env:"POLL_INTERVAL"`
-	ReportInterval int64  `env:"REPORT_INTERVAL"`
-	ServerAddress  string `env:"ADDRESS"`
-}
-
 type Metrics struct {
 	Alloc         Gauge
 	BuckHashSys   Gauge
@@ -190,4 +184,11 @@ func (m *MemStorage) GetAllData() string {
 		allStats = append(allStats, fmt.Sprintf("%s: %s", key, fmt.Sprintf("%d", val)))
 	}
 	return strings.Join(allStats, "\n")
+}
+
+func NewMemStorage() *MemStorage {
+	return &MemStorage{
+		Gauge:   map[string]Gauge{},
+		Counter: map[string]Counter{},
+	}
 }

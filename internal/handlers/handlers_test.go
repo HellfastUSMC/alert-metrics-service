@@ -1,13 +1,15 @@
 package handlers
 
 import (
-	"github.com/HellfastUSMC/alert-metrics-service/internal/storage"
-	"github.com/go-chi/chi/v5"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/HellfastUSMC/alert-metrics-service/internal/storage"
 )
 
 func TestGetMetrics(t *testing.T) {
