@@ -26,7 +26,7 @@ type UpdateParse struct {
 }
 
 type MemStorekeeper interface {
-	SetMetric(string, string, string) error
+	SetMetric(metricType string, metricName string, metricValue string) error
 	GetValueByName(string, string) (string, error)
 	GetAllData() string
 }
@@ -139,8 +139,13 @@ func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue
 			return fmt.Errorf("can't convert to float64 %e", err)
 		}
 		m.PollCount += 1
-		m.Gauge[metricName] = Gauge(flt)
-		return nil
+		if _, ok := m.Counter[metricName]; !ok {
+			m.Gauge[metricName] = Gauge(flt)
+			return nil
+		} else {
+			m.Gauge[metricName] += Gauge(flt)
+			return nil
+		}
 	} else if strings.ToUpper(metricType) == "COUNTER" {
 		integ, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
@@ -190,5 +195,39 @@ func NewMemStorage() *MemStorage {
 	return &MemStorage{
 		Gauge:   map[string]Gauge{},
 		Counter: map[string]Counter{},
+	}
+}
+
+func NewMetricsStorage() *Metrics {
+	return &Metrics{
+		Alloc:         0,
+		BuckHashSys:   0,
+		Frees:         0,
+		GCCPUFraction: 0,
+		GCSys:         0,
+		HeapAlloc:     0,
+		HeapIdle:      0,
+		HeapInuse:     0,
+		HeapObjects:   0,
+		HeapReleased:  0,
+		HeapSys:       0,
+		LastGC:        0,
+		Lookups:       0,
+		MCacheInuse:   0,
+		MCacheSys:     0,
+		MSpanInuse:    0,
+		MSpanSys:      0,
+		Mallocs:       0,
+		NextGC:        0,
+		NumForcedGC:   0,
+		NumGC:         0,
+		OtherSys:      0,
+		PauseTotalNs:  0,
+		StackInuse:    0,
+		StackSys:      0,
+		Sys:           0,
+		TotalAlloc:    0,
+		PollCount:     0,
+		RandomValue:   0,
 	}
 }

@@ -1,58 +1,53 @@
 package main
 
 import (
-	"fmt"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
+	"os"
 	"time"
 
-	"github.com/HellfastUSMC/alert-metrics-service/internal/flags"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/storage"
 
-	"github.com/caarlos0/env/v6"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
-	conf := flags.SysConfig{}
-	err := env.Parse(&conf)
+	log := logrus.New()
+	log.SetLevel(logrus.DebugLevel)
+	log.SetOutput(os.Stdout)
+	conf, err := config.NewConfig()
+	controller := controllers.AgentController{
+		Config:  conf,
+		Logger:  log,
+		Storage: storage.NewMetricsStorage(),
+	}
 	if err != nil {
-		fmt.Println(err)
+		controller.Logger.Warning(err)
 	}
-	if conf.ServerAddress == "" || conf.PollInterval == 0 || conf.ReportInterval == 0 {
-		conf.ParseAgentFlags()
+	if controller.Config.ServerAddress == "" || controller.Config.PollInterval == 0 || controller.Config.ReportInterval == 0 {
+		if err := controller.Config.ParseAgentFlags(); err != nil {
+			controller.Logger.Warning(err)
+		}
 	}
-	fmt.Printf(
+	controller.Logger.Infof(
 		"Starting agent with remote server addr: %s, poll interval: %d, report interval: %d\n",
-		conf.ServerAddress,
-		conf.PollInterval,
-		conf.ReportInterval,
+		controller.Config.ServerAddress,
+		controller.Config.PollInterval,
+		controller.Config.ReportInterval,
 	)
-	tickPoll := time.NewTicker(time.Duration(conf.PollInterval) * time.Second)
-	tickReport := time.NewTicker(time.Duration(conf.ReportInterval) * time.Second)
-	var stats storage.Metrics
-	//for {
-	//	for i := int64(1); i <= conf.ReportInterval; i++ {
-	//		if i%conf.PollInterval == 0 {
-	//			stats.RenewMetrics()
-	//		}
-	//		if i%conf.ReportInterval == 0 {
-	//			err := stats.SendMetrics("http://" + conf.ServerAddress)
-	//			if err != nil {
-	//				fmt.Printf("there's an error in sending metrics - %e", err)
-	//			}
-	//		}
-	//		time.Sleep(time.Duration(1) * time.Second)
-	//	}
-	//}
+	tickPoll := time.NewTicker(time.Duration(controller.Config.PollInterval) * time.Second)
+	tickReport := time.NewTicker(time.Duration(controller.Config.ReportInterval) * time.Second)
 	go func() {
 		for {
 			<-tickPoll.C
-			stats.RenewMetrics()
+			controller.Storage.RenewMetrics()
 		}
 	}()
 	go func() {
 		for {
 			<-tickReport.C
-			if err := stats.SendMetrics("http://" + conf.ServerAddress); err != nil {
-				fmt.Println(err)
+			if err := controller.Storage.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {
+				controller.Logger.Error(err)
 			}
 		}
 	}()
