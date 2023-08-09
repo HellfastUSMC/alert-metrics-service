@@ -2,8 +2,9 @@ package config
 
 import (
 	"flag"
-	"github.com/caarlos0/env/v6"
 	"os"
+
+	"github.com/caarlos0/env/v6"
 )
 
 type SysConfig struct {

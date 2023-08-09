@@ -20,7 +20,7 @@ type ServerController struct {
 	CRouter  *chi.Mux
 }
 
-func (c *ServerController) ReturnMetric() func(http.ResponseWriter, *http.Request) {
+func (c *ServerController) returnMetric() func(http.ResponseWriter, *http.Request) {
 	return func(res http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
 			http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
@@ -49,7 +49,7 @@ func (c *ServerController) ReturnMetric() func(http.ResponseWriter, *http.Reques
 	}
 }
 
-func (c *ServerController) GetMetrics() func(http.ResponseWriter, *http.Request) {
+func (c *ServerController) getMetrics() func(http.ResponseWriter, *http.Request) {
 	return func(res http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost {
 			http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
@@ -90,7 +90,7 @@ func (c *ServerController) GetMetrics() func(http.ResponseWriter, *http.Request)
 
 }
 
-func (c *ServerController) GetAllStats() func(http.ResponseWriter, *http.Request) {
+func (c *ServerController) getAllStats() func(http.ResponseWriter, *http.Request) {
 	return func(res http.ResponseWriter, _ *http.Request) {
 		allStats := c.MemStore.GetAllData()
 		res.Header().Add("Content-Type", "text/plain; charset=utf-8")
@@ -104,12 +104,12 @@ func (c *ServerController) GetAllStats() func(http.ResponseWriter, *http.Request
 func (c *ServerController) Router() *chi.Mux {
 	router := chi.NewRouter()
 	router.Route("/", func(router chi.Router) {
-		router.Get("/", c.GetAllStats())
+		router.Get("/", c.getAllStats())
 		router.Route("/value", func(router chi.Router) {
-			router.Get("/{metricType}/{metricName}", c.ReturnMetric())
+			router.Get("/{metricType}/{metricName}", c.returnMetric())
 		})
 		router.Route("/update", func(router chi.Router) {
-			router.Post("/{metricType}/{metricName}/{metricValue}", c.GetMetrics())
+			router.Post("/{metricType}/{metricName}/{metricValue}", c.getMetrics())
 		})
 	})
 	return router
