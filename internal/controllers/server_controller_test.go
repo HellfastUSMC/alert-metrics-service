@@ -112,7 +112,7 @@ func TestGetMetrics(t *testing.T) {
 			router := chi.NewRouter()
 
 			router.Route("/update", func(router chi.Router) {
-				router.Post("/{metricType}/{metricName}/{metricValue}", tt.args.ctrl.GetMetrics())
+				router.Post("/{metricType}/{metricName}/{metricValue}", tt.args.ctrl.getMetrics())
 			})
 
 			ts := httptest.NewServer(router)
@@ -197,7 +197,7 @@ func TestGetAllStats(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			router := chi.NewRouter()
 			router.Route("/", func(router chi.Router) {
-				router.Get("/", tt.args.ctrl.GetAllStats())
+				router.Get("/", tt.args.ctrl.getAllStats())
 			})
 			ts := httptest.NewServer(router)
 			defer ts.Close()
@@ -279,7 +279,7 @@ func TestReturnMetric(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			router := chi.NewRouter()
 			router.Route("/value", func(router chi.Router) {
-				router.Get("/{metricType}/{metricName}", tt.args.ctrl.ReturnMetric())
+				router.Get("/{metricType}/{metricName}", tt.args.ctrl.returnMetric())
 			})
 			ts := httptest.NewServer(router)
 			defer ts.Close()
