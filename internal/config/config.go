@@ -30,13 +30,9 @@ func (c *SysConfig) ParseAgentFlags() error {
 }
 
 func NewConfig() (*SysConfig, error) {
-	config := &SysConfig{}
-	if err := env.Parse(config); err != nil {
-		return config, err
+	config := SysConfig{}
+	if err := env.Parse(&config); err != nil {
+		return &config, err
 	}
-	return &SysConfig{
-		PollInterval:   0,
-		ReportInterval: 0,
-		ServerAddress:  "",
-	}, nil
+	return &config, nil
 }
