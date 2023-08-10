@@ -7,8 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/HellfastUSMC/alert-metrics-service/internal/storage"
-
+	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +33,7 @@ func TestGetMetrics(t *testing.T) {
 				url:       "/update/gauge/Alloc/777.5",
 				reqMethod: http.MethodPost,
 				ctrl: ServerController{
-					MemStore: storage.NewMemStorage(),
+					MemStore: serverstorage.NewMemStorage(),
 				},
 			},
 			want: want{
@@ -47,7 +46,7 @@ func TestGetMetrics(t *testing.T) {
 				url:       "/update/ga1uge/Alloc/777.5",
 				reqMethod: http.MethodPost,
 				ctrl: ServerController{
-					MemStore: storage.NewMemStorage(),
+					MemStore: serverstorage.NewMemStorage(),
 				},
 			},
 			want: want{
@@ -60,7 +59,7 @@ func TestGetMetrics(t *testing.T) {
 				url:       "/update/gauge/777.5",
 				reqMethod: http.MethodPost,
 				ctrl: ServerController{
-					MemStore: storage.NewMemStorage(),
+					MemStore: serverstorage.NewMemStorage(),
 				},
 			},
 			want: want{
@@ -73,7 +72,7 @@ func TestGetMetrics(t *testing.T) {
 				url:       "/update/gauge/Alloc/agb",
 				reqMethod: http.MethodPost,
 				ctrl: ServerController{
-					MemStore: storage.NewMemStorage(),
+					MemStore: serverstorage.NewMemStorage(),
 				},
 			},
 			want: want{
@@ -86,7 +85,7 @@ func TestGetMetrics(t *testing.T) {
 				url:       "/update/gauge/Alloc/",
 				reqMethod: http.MethodPost,
 				ctrl: ServerController{
-					MemStore: storage.NewMemStorage(),
+					MemStore: serverstorage.NewMemStorage(),
 				},
 			},
 			want: want{
@@ -99,7 +98,7 @@ func TestGetMetrics(t *testing.T) {
 				url:       "/update/gauge/Alloc/777.5",
 				reqMethod: http.MethodGet,
 				ctrl: ServerController{
-					MemStore: storage.NewMemStorage(),
+					MemStore: serverstorage.NewMemStorage(),
 				},
 			},
 			want: want{
@@ -112,7 +111,7 @@ func TestGetMetrics(t *testing.T) {
 			router := chi.NewRouter()
 
 			router.Route("/update", func(router chi.Router) {
-				router.Post("/{metricType}/{metricName}/{metricValue}", tt.args.ctrl.getMetrics())
+				router.Post("/{metricType}/{metricName}/{metricValue}", tt.args.ctrl.getMetrics)
 			})
 
 			ts := httptest.NewServer(router)
@@ -159,7 +158,7 @@ func TestGetAllStats(t *testing.T) {
 				url:       "/",
 				reqMethod: http.MethodGet,
 				ctrl: ServerController{
-					MemStore: storage.NewMemStorage(),
+					MemStore: serverstorage.NewMemStorage(),
 				},
 			},
 			want: want{
@@ -172,7 +171,7 @@ func TestGetAllStats(t *testing.T) {
 				url:       "/444",
 				reqMethod: http.MethodGet,
 				ctrl: ServerController{
-					MemStore: storage.NewMemStorage(),
+					MemStore: serverstorage.NewMemStorage(),
 				},
 			},
 			want: want{
@@ -185,7 +184,7 @@ func TestGetAllStats(t *testing.T) {
 				url:       "/",
 				reqMethod: http.MethodPost,
 				ctrl: ServerController{
-					MemStore: storage.NewMemStorage(),
+					MemStore: serverstorage.NewMemStorage(),
 				},
 			},
 			want: want{
@@ -197,7 +196,7 @@ func TestGetAllStats(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			router := chi.NewRouter()
 			router.Route("/", func(router chi.Router) {
-				router.Get("/", tt.args.ctrl.getAllStats())
+				router.Get("/", tt.args.ctrl.getAllStats)
 			})
 			ts := httptest.NewServer(router)
 			defer ts.Close()
@@ -228,7 +227,7 @@ func TestReturnMetric(t *testing.T) {
 		reqMethod   string
 		ctrl        ServerController
 		metricName  string
-		metricValue storage.Gauge
+		metricValue serverstorage.Gauge
 	}
 	type want struct {
 		code     int
@@ -248,7 +247,7 @@ func TestReturnMetric(t *testing.T) {
 				metricName:  "testMetric",
 				metricValue: 100,
 				ctrl: ServerController{
-					MemStore: storage.NewMemStorage(),
+					MemStore: serverstorage.NewMemStorage(),
 				},
 			},
 			want: want{
@@ -265,7 +264,7 @@ func TestReturnMetric(t *testing.T) {
 				metricName:  "testMetric",
 				metricValue: 100,
 				ctrl: ServerController{
-					MemStore: storage.NewMemStorage(),
+					MemStore: serverstorage.NewMemStorage(),
 					Logger:   logrus.New(),
 				},
 			},
@@ -279,7 +278,7 @@ func TestReturnMetric(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			router := chi.NewRouter()
 			router.Route("/value", func(router chi.Router) {
-				router.Get("/{metricType}/{metricName}", tt.args.ctrl.returnMetric())
+				router.Get("/{metricType}/{metricName}", tt.args.ctrl.returnMetric)
 			})
 			ts := httptest.NewServer(router)
 			defer ts.Close()

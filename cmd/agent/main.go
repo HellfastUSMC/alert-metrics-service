@@ -1,13 +1,12 @@
 package main
 
 import (
-	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"os"
 	"time"
 
+	"github.com/HellfastUSMC/alert-metrics-service/internal/agent-storage"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
-	"github.com/HellfastUSMC/alert-metrics-service/internal/storage"
-
 	"github.com/sirupsen/logrus"
 )
 
@@ -16,16 +15,16 @@ func main() {
 	log.SetLevel(logrus.DebugLevel)
 	log.SetOutput(os.Stdout)
 	conf, err := config.NewConfig()
+	if err != nil {
+		log.Warning(err)
+	}
 	controller := controllers.AgentController{
 		Config:  conf,
 		Logger:  log,
-		Storage: storage.NewMetricsStorage(),
+		Storage: agentstorage.NewMetricsStorage(),
 	}
-	if err != nil {
-		controller.Logger.Warning(err)
-	}
-	if controller.Config.ServerAddress == "" || controller.Config.PollInterval == 0 || controller.Config.ReportInterval == 0 {
-		if err := controller.Config.ParseAgentFlags(); err != nil {
+	if conf.ServerAddress == "" || conf.PollInterval == 0 || conf.ReportInterval == 0 {
+		if err := conf.ParseAgentFlags(); err != nil {
 			controller.Logger.Warning(err)
 		}
 	}
