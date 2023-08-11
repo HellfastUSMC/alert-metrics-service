@@ -43,3 +43,15 @@ func NewAgentController(logger CLogger, conf *config.SysConfig, agentHndl agentH
 		Storage: agentHndl,
 	}
 }
+
+func (c *agentController) RenewMetrics() {
+	c.Storage.RenewMetrics()
+}
+
+func (c *agentController) SendMetrics(url string) error {
+	err := c.Storage.SendMetrics(url)
+	if err != nil {
+		return err
+	}
+	return nil
+}

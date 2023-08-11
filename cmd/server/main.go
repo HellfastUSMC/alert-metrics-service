@@ -19,10 +19,10 @@ func main() {
 	if err != nil {
 		log.Warning(err)
 	}
-	controller := controllers.NewServerController(log, conf, serverstorage.NewMemStorage())
 	if conf.ServerAddress == "" {
 		conf.ParseServerAddr()
 	}
+	controller := controllers.NewServerController(log, conf, serverstorage.NewMemStorage())
 	router := chi.NewRouter()
 	router.Mount("/", controller.Route())
 	controller.Infof("Starting server at " + controller.Config.ServerAddress)
