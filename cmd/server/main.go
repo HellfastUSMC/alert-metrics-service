@@ -19,19 +19,15 @@ func main() {
 	if err != nil {
 		log.Warning(err)
 	}
-	controller := controllers.ServerController{
-		Logger:   log,
-		Config:   conf,
-		MemStore: serverstorage.NewMemStorage(),
-	}
+	controller := controllers.NewServerController(log, conf, serverstorage.NewMemStorage())
 	if conf.ServerAddress == "" {
 		conf.ParseServerAddr()
 	}
 	router := chi.NewRouter()
 	router.Mount("/", controller.Route())
-	controller.Logger.Infof("Starting server at " + controller.Config.ServerAddress)
+	controller.Infof("Starting server at " + controller.Config.ServerAddress)
 	err = http.ListenAndServe(controller.Config.ServerAddress, router)
 	if err != nil {
-		controller.Logger.Errorf("there's an error in server starting - %e", err)
+		controller.Errorf("there's an error in server starting - %e", err)
 	}
 }

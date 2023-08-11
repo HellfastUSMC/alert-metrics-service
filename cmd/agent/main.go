@@ -18,17 +18,13 @@ func main() {
 	if err != nil {
 		log.Warning(err)
 	}
-	controller := controllers.AgentController{
-		Config:  conf,
-		Logger:  log,
-		Storage: agentstorage.NewMetricsStorage(),
-	}
+	controller := controllers.NewAgentController(log, conf, agentstorage.NewMetricsStorage())
 	if conf.ServerAddress == "" || conf.PollInterval == 0 || conf.ReportInterval == 0 {
 		if err := conf.ParseAgentFlags(); err != nil {
-			controller.Logger.Warning(err)
+			controller.Warning(err)
 		}
 	}
-	controller.Logger.Infof(
+	controller.Infof(
 		"Starting agent with remote server addr: %s, poll interval: %d, report interval: %d\n",
 		controller.Config.ServerAddress,
 		controller.Config.PollInterval,
@@ -46,7 +42,7 @@ func main() {
 		for {
 			<-tickReport.C
 			if err := controller.Storage.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {
-				controller.Logger.Error(err)
+				controller.Error(err)
 			}
 		}
 	}()

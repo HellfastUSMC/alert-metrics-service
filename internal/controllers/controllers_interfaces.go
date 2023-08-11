@@ -10,7 +10,7 @@ type CLogger interface {
 	Warning(args ...interface{})
 }
 
-type AgentHandler interface {
+type agentHandler interface {
 	RenewMetrics()
 	SendMetrics(string) error
 }
