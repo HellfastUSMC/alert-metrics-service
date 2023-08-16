@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 
@@ -8,26 +9,25 @@ import (
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
 	"github.com/go-chi/chi/v5"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 )
 
 func main() {
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-	log.SetOutput(os.Stdout)
+	log := zerolog.New(os.Stdout).Level(zerolog.TraceLevel)
 	conf, err := config.NewConfig()
 	if err != nil {
-		log.Warning(err)
+		log.Warn().Err(err)
 	}
 	if conf.ServerAddress == "" {
 		conf.ParseServerAddr()
 	}
-	controller := controllers.NewServerController(log, conf, serverstorage.NewMemStorage())
+	controller := controllers.NewServerController(&log, conf, serverstorage.NewMemStorage())
 	router := chi.NewRouter()
 	router.Mount("/", controller.Route())
-	controller.Infof("Starting server at " + controller.Config.ServerAddress)
+	controller.Info().Msg("Starting server at " + controller.Config.ServerAddress)
 	err = http.ListenAndServe(controller.Config.ServerAddress, router)
 	if err != nil {
-		controller.Errorf("there's an error in server starting - %e", err)
+		fmt.Println(err)
+		controller.Error().Err(err)
 	}
 }

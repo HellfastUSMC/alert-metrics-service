@@ -1,16 +1,18 @@
 package controllers
 
+import "github.com/rs/zerolog"
+
 type CLogger interface {
-	Infof(format string, args ...interface{})
-	Warnf(format string, args ...interface{})
-	Errorf(format string, args ...interface{})
-	Info(args ...interface{})
-	Warn(args ...interface{})
-	Error(args ...interface{})
-	Warning(args ...interface{})
+	Info() *zerolog.Event
+	Warn() *zerolog.Event
+	Error() *zerolog.Event
 }
 
 type agentHandler interface {
 	RenewMetrics()
 	SendMetrics(string) error
+}
+
+type logTyper interface {
+	Str(key string, val string) *logTyper
 }
