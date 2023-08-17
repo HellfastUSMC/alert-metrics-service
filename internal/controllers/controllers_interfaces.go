@@ -13,6 +13,7 @@ type agentHandler interface {
 	SendMetrics(string) error
 }
 
-type logTyper interface {
-	Str(key string, val string) *logTyper
-}
+//
+//type logTyper interface {
+//	Str(key string, val string) *logTyper
+//}

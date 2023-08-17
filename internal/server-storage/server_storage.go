@@ -2,6 +2,7 @@ package serverstorage
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -15,43 +16,26 @@ type MemStorage struct {
 	PollCount Counter
 }
 
-type UpdateParse struct {
-	MetricType string
-	MetricName string
-	MetricVal  string
-}
-
 type MemStorekeeper interface {
-	SetMetric(metricType string, metricName string, metricValue string) error
+	SetMetric(metricType string, metricName string, metricValue interface{}) error
 	GetValueByName(string, string) (string, error)
 	GetAllData() string
 }
 
-func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue string) error {
+func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue interface{}) error {
 	if strings.ToUpper(metricType) == "GAUGE" {
-		flt, err := strconv.ParseFloat(metricValue, 64)
-		if err != nil {
-			return fmt.Errorf("can't convert to float64 %e", err)
-		}
 		m.PollCount += 1
 		if _, ok := m.Counter[metricName]; !ok {
-			m.Gauge[metricName] = Gauge(flt)
-			return nil
-		} else {
-			m.Gauge[metricName] += Gauge(flt)
+			m.Gauge[metricName] = Gauge(reflect.ValueOf(metricValue).Elem().Float())
 			return nil
 		}
 	} else if strings.ToUpper(metricType) == "COUNTER" {
-		integ, err := strconv.ParseInt(metricValue, 10, 64)
-		if err != nil {
-			return fmt.Errorf("can't convert to int64 %e", err)
-		}
 		m.PollCount += 1
 		if _, ok := m.Counter[metricName]; !ok {
-			m.Counter[metricName] = Counter(integ)
+			m.Counter[metricName] = Counter(reflect.ValueOf(metricValue).Elem().Int())
 			return nil
 		} else {
-			m.Counter[metricName] += Counter(integ)
+			m.Counter[metricName] += Counter(reflect.ValueOf(metricValue).Elem().Int())
 			return nil
 		}
 	}

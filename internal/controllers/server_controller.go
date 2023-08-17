@@ -1,16 +1,17 @@
 package controllers
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/rs/zerolog"
+	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog"
 )
 
 type serverController struct {
@@ -18,6 +19,7 @@ type serverController struct {
 	Config   *config.SysConfig
 	MemStore serverstorage.MemStorekeeper
 }
+
 type logRespWriter struct {
 	data struct {
 		code int
@@ -26,16 +28,27 @@ type logRespWriter struct {
 	wr http.ResponseWriter
 }
 
-func (c *serverController) returnMetric(res http.ResponseWriter, req *http.Request) {
-	updateURL := serverstorage.UpdateParse{}
-	updateURL.MetricType = chi.URLParam(req, "metricType")
-	updateURL.MetricName = chi.URLParam(req, "metricName")
+type Metrics struct {
+	ID    string   `json:"id"`              // имя метрики
+	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
+	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
+	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+}
 
-	if strings.ToUpper(updateURL.MetricType) != "GAUGE" && strings.ToUpper(updateURL.MetricType) != "COUNTER" {
+func (c *serverController) returnMetric(res http.ResponseWriter, req *http.Request) {
+	updateMetric := Metrics{}
+	body, err := io.ReadAll(req.Body)
+	if err := json.Unmarshal(body, &updateMetric); err != nil {
+		http.Error(res, "Can't parse JSON", http.StatusInternalServerError)
+		return
+	}
+	fmt.Println(updateMetric)
+
+	if strings.ToUpper(updateMetric.MType) != "GAUGE" && strings.ToUpper(updateMetric.MType) != "COUNTER" {
 		http.Error(res, "Wrong metric type", http.StatusBadRequest)
 		return
 	}
-	val, err := c.MemStore.GetValueByName(updateURL.MetricType, updateURL.MetricName)
+	val, err := c.MemStore.GetValueByName(updateMetric.MType, updateMetric.ID)
 	if err != nil {
 		c.Error().Err(err).Msg("error of GetValueByName ")
 		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusNotFound)
@@ -47,61 +60,52 @@ func (c *serverController) returnMetric(res http.ResponseWriter, req *http.Reque
 }
 
 func (c *serverController) getMetrics(res http.ResponseWriter, req *http.Request) {
-	updateURL := serverstorage.UpdateParse{}
-	updateURL.MetricType = chi.URLParam(req, "metricType")
-	updateURL.MetricName = chi.URLParam(req, "metricName")
-	updateURL.MetricVal = chi.URLParam(req, "metricValue")
-
-	if strings.ToUpper(updateURL.MetricType) != "GAUGE" &&
-		strings.ToUpper(updateURL.MetricType) != "COUNTER" ||
-		updateURL.MetricVal == "" {
+	updateMetric := Metrics{}
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(res, "can't read request body", http.StatusInternalServerError)
+		return
+	}
+	if err := json.Unmarshal(body, &updateMetric); err != nil {
+		http.Error(res, "can't parse JSON", http.StatusInternalServerError)
+		return
+	}
+	if strings.ToUpper(updateMetric.MType) == "GAUGE" &&
+		updateMetric.Value == nil ||
+		strings.ToUpper(updateMetric.MType) == "COUNTER" &&
+			updateMetric.Delta == nil {
 		http.Error(res, "Wrong metric type or empty value", http.StatusBadRequest)
 		return
 	}
-	if strings.ToUpper(updateURL.MetricType) == "GAUGE" {
-		if _, err := strconv.ParseFloat(updateURL.MetricVal, 64); err != nil {
-			http.Error(res, "Can't parse metric value", http.StatusBadRequest)
+
+	if strings.ToUpper(updateMetric.MType) == "GAUGE" {
+		err := c.MemStore.SetMetric(updateMetric.MType, updateMetric.ID, updateMetric.Value)
+		if err != nil {
+			c.Logger.Error().Err(err).Msg("error of SetMetric")
+			http.Error(
+				res,
+				fmt.Sprintf("Error occurred when converting to float64 - %e", err),
+				http.StatusInternalServerError,
+			)
 			return
 		}
 	}
-	if strings.ToUpper(updateURL.MetricType) == "COUNTER" {
-		if _, err := strconv.ParseInt(updateURL.MetricVal, 10, 64); err != nil {
-			http.Error(res, "Can't parse metric value", http.StatusBadRequest)
+
+	if strings.ToUpper(updateMetric.MType) == "COUNTER" {
+		err := c.MemStore.SetMetric(updateMetric.MType, updateMetric.ID, updateMetric.Delta)
+		if err != nil {
+			c.Logger.Error().Err(err).Msg("error of SetMetric")
+			http.Error(
+				res,
+				fmt.Sprintf("Error occurred when converting to int64 - %e", err),
+				http.StatusInternalServerError,
+			)
 			return
 		}
+		res.Header().Add("content-type", "application/json")
+		res.Header().Add("Date", time.Now().Format(http.TimeFormat))
+		res.WriteHeader(200)
 	}
-	if err := c.MemStore.SetMetric(updateURL.MetricType, updateURL.MetricName, updateURL.MetricVal); err != nil {
-		c.Logger.Error().Err(err).Msg("error of SetMetric")
-		http.Error(
-			res,
-			fmt.Sprintf("Error occurred when converting to float64 or int64 - %e", err),
-			http.StatusInternalServerError,
-		)
-		return
-	}
-	res.Header().Add("content-type", "text/plain; charset=utf-8")
-	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
-	res.WriteHeader(200)
-}
-
-func (c *serverController) getAllStats(res http.ResponseWriter, _ *http.Request) {
-	allStats := c.MemStore.GetAllData()
-	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
-	if _, err := res.Write([]byte(allStats)); err != nil {
-		c.Error().Err(err)
-	}
-
-}
-
-func (c *serverController) Route() *chi.Mux {
-	router := chi.NewRouter()
-	router.Use(c.reqResLogging)
-	router.Route("/", func(router chi.Router) {
-		router.Get("/", c.getAllStats)
-		router.Get("/value/{metricType}/{metricName}", c.returnMetric)
-		router.Post("/update/{metricType}/{metricName}/{metricValue}", c.getMetrics)
-	})
-	return router
 }
 
 func (c *serverController) Info() *zerolog.Event {
@@ -115,13 +119,31 @@ func (c *serverController) Warn() *zerolog.Event {
 func (c *serverController) Error() *zerolog.Event {
 	return c.Logger.Error()
 }
-
 func NewServerController(logger CLogger, conf *config.SysConfig, mStore *serverstorage.MemStorage) *serverController {
 	return &serverController{
 		Logger:   logger,
 		Config:   conf,
 		MemStore: mStore,
 	}
+}
+
+func (c *serverController) getAllStats(res http.ResponseWriter, _ *http.Request) {
+	allStats := c.MemStore.GetAllData()
+	res.Header().Add("Content-Type", "application/json")
+	if _, err := res.Write([]byte(allStats)); err != nil {
+		c.Error().Err(err)
+	}
+}
+
+func (c *serverController) Route() *chi.Mux {
+	router := chi.NewRouter()
+	router.Use(c.reqResLogging)
+	router.Route("/", func(router chi.Router) {
+		router.Get("/", c.getAllStats)
+		router.Get("/value", c.returnMetric)
+		router.Post("/update", c.getMetrics)
+	})
+	return router
 }
 
 func (c *serverController) reqResLogging(h http.Handler) http.Handler {
