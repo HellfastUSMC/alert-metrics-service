@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,13 +29,6 @@ type logRespWriter struct {
 	wr http.ResponseWriter
 }
 
-type Metrics struct {
-	ID    string   `json:"id"`              // имя метрики
-	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
-	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
-	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
-}
-
 func (c *serverController) returnMetric(res http.ResponseWriter, req *http.Request) {
 	updateMetric := Metrics{}
 	body, err := io.ReadAll(req.Body)
@@ -42,7 +36,6 @@ func (c *serverController) returnMetric(res http.ResponseWriter, req *http.Reque
 		http.Error(res, "Can't parse JSON", http.StatusInternalServerError)
 		return
 	}
-	fmt.Println(updateMetric)
 
 	if strings.ToUpper(updateMetric.MType) != "GAUGE" && strings.ToUpper(updateMetric.MType) != "COUNTER" {
 		http.Error(res, "Wrong metric type", http.StatusBadRequest)
@@ -52,10 +45,32 @@ func (c *serverController) returnMetric(res http.ResponseWriter, req *http.Reque
 	if err != nil {
 		c.Error().Err(err).Msg("error of GetValueByName ")
 		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusNotFound)
+		return
 	}
+	if strings.ToUpper(updateMetric.MType) == "GAUGE" {
+		flVal, err := strconv.ParseFloat(val, 64)
+		if err != nil {
+			c.Error().Err(err)
+			http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
+			return
+		}
+		updateMetric.Value = &flVal
+	} else if strings.ToUpper(updateMetric.MType) == "COUNTER" {
+		intVal, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			c.Error().Err(err)
+			http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
+			return
+		}
+		updateMetric.Delta = &intVal
+	}
+
+	jsonData, err := json.Marshal(updateMetric)
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
-	if _, err = res.Write([]byte(val)); err != nil {
+	if _, err = res.Write(jsonData); err != nil {
 		c.Error().Err(err)
+		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -70,9 +85,9 @@ func (c *serverController) getMetrics(res http.ResponseWriter, req *http.Request
 		http.Error(res, "can't parse JSON", http.StatusInternalServerError)
 		return
 	}
-	if strings.ToUpper(updateMetric.MType) == "GAUGE" &&
-		updateMetric.Value == nil ||
-		strings.ToUpper(updateMetric.MType) == "COUNTER" &&
+	if strings.ToUpper(updateMetric.MType) != "GAUGE" &&
+		strings.ToUpper(updateMetric.MType) != "COUNTER" ||
+		updateMetric.Value == nil &&
 			updateMetric.Delta == nil {
 		http.Error(res, "Wrong metric type or empty value", http.StatusBadRequest)
 		return

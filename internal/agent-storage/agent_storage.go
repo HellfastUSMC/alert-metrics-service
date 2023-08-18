@@ -1,7 +1,10 @@
 package agentstorage
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
 	"math/rand"
 	"net/http"
 	"reflect"
@@ -12,7 +15,7 @@ import (
 type Gauge float64
 type Counter int64
 
-type Metrics struct {
+type Metric struct {
 	Alloc         Gauge
 	BuckHashSys   Gauge
 	Frees         Gauge
@@ -44,7 +47,7 @@ type Metrics struct {
 	RandomValue   Gauge
 }
 
-func (m *Metrics) RenewMetrics() {
+func (m *Metric) RenewMetrics() {
 	var memstat runtime.MemStats
 	runtime.ReadMemStats(&memstat)
 	m.Alloc = Gauge(memstat.Alloc)
@@ -77,19 +80,28 @@ func (m *Metrics) RenewMetrics() {
 	m.RandomValue = Gauge(rand.Float64())
 }
 
-func (m *Metrics) SendMetrics(hostAndPort string) error {
+func (m *Metric) SendMetrics(hostAndPort string) error {
 	fieldsValues := reflect.ValueOf(m).Elem()
 	fieldsTypes := reflect.TypeOf(m).Elem()
 	for i := 0; i < fieldsValues.NumField()-2; i++ {
 		fieldType := strings.Replace(fieldsTypes.Field(i).Type.String(), "storage.", "", -1)
+		metricStruct := controllers.Metrics{ID: fieldsTypes.Field(i).Name, MType: fieldType}
+		if strings.ToUpper(metricStruct.MType) == "GAUGE" {
+			flVal := fieldsValues.Field(i).Float()
+			metricStruct.Value = &flVal
+		} else {
+			intVal := fieldsValues.Field(i).Int()
+			metricStruct.Delta = &intVal
+		}
+		jsonVal, err := json.Marshal(metricStruct)
+		if err != nil {
+			return fmt.Errorf("there's an error in marshalling JSON %e", err)
+		}
 		r, err := http.NewRequest(
 			http.MethodPost,
-			fmt.Sprintf("%s/update/%s/%s/%v",
-				hostAndPort,
-				fieldType,
-				fieldsTypes.Field(i).Name,
-				fieldsValues.Field(i)),
-			nil)
+			fmt.Sprintf("%s/update",
+				hostAndPort),
+			bytes.NewBuffer(jsonVal))
 		if err != nil {
 			return fmt.Errorf("there's an error in creating send metric request: type - %s, name - %s, value - %v, error - %e",
 				fieldType,
@@ -99,7 +111,7 @@ func (m *Metrics) SendMetrics(hostAndPort string) error {
 			)
 
 		}
-		r.Header.Add("Content-Type", "text/plain")
+		r.Header.Add("Content-Type", "application/json")
 		client := &http.Client{}
 		res, err := client.Do(r)
 		if err != nil {
@@ -113,8 +125,8 @@ func (m *Metrics) SendMetrics(hostAndPort string) error {
 	return nil
 }
 
-func NewMetricsStorage() *Metrics {
-	return &Metrics{
+func NewMetricsStorage() *Metric {
+	return &Metric{
 		Alloc:         0,
 		BuckHashSys:   0,
 		Frees:         0,
