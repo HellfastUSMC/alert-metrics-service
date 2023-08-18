@@ -29,7 +29,6 @@ type UpdateParse struct {
 }
 
 func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue interface{}) error {
-
 	if strings.ToUpper(metricType) == "GAUGE" {
 		m.PollCount += 1
 		if _, ok := m.Counter[metricName]; !ok {
@@ -44,7 +43,9 @@ func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue
 			m.Gauge[metricName] = Gauge(reflect.ValueOf(metricValue).Elem().Float())
 			return nil
 		}
-	} else if strings.ToUpper(metricType) == "COUNTER" {
+		return nil
+	}
+	if strings.ToUpper(metricType) == "COUNTER" {
 		m.PollCount += 1
 		if _, ok := m.Counter[metricName]; !ok {
 			if reflect.TypeOf(metricValue).String() == "string" {
@@ -76,13 +77,13 @@ func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue
 func (m *MemStorage) GetValueByName(metricType string, metricName string) (string, error) {
 	if strings.ToUpper(metricType) == "GAUGE" {
 		if val, ok := m.Gauge[metricName]; !ok {
-			return "", fmt.Errorf("there's no metric called %s", metricName)
+			return "", fmt.Errorf("there's no gauge metric called %s", metricName)
 		} else {
 			return strconv.FormatFloat(float64(val), 'f', -1, 64), nil
 		}
 	} else if strings.ToUpper(metricType) == "COUNTER" {
 		if val, ok := m.Counter[metricName]; !ok {
-			return "", fmt.Errorf("there's no metric called %s", metricName)
+			return "", fmt.Errorf("there's no counter metric called %s", metricName)
 		} else {
 			return strconv.FormatInt(int64(val), 10), nil
 		}

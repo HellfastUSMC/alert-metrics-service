@@ -74,7 +74,9 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 		http.Error(res, "can't parse JSON", http.StatusInternalServerError)
 		return
 	}
-	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	res.Header().Add("Content-Type", "application/json")
+	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
+	res.WriteHeader(http.StatusOK)
 	if _, err = res.Write(jsonData); err != nil {
 		c.Error().Err(err)
 		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
@@ -93,10 +95,10 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 		http.Error(res, "can't parse JSON", http.StatusInternalServerError)
 		return
 	}
-	if strings.ToUpper(updateMetric.MType) != "GAUGE" &&
-		strings.ToUpper(updateMetric.MType) != "COUNTER" ||
-		updateMetric.Value == nil &&
-			updateMetric.Delta == nil {
+	if (strings.ToUpper(updateMetric.MType) != "GAUGE" &&
+		strings.ToUpper(updateMetric.MType) != "COUNTER") ||
+		(updateMetric.Value == nil &&
+			updateMetric.Delta == nil) {
 		http.Error(res, "Wrong metric type or empty value", http.StatusBadRequest)
 		return
 	}
@@ -107,7 +109,7 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 			c.Logger.Error().Err(err).Msg("error of SetMetric")
 			http.Error(
 				res,
-				fmt.Sprintf("Error occurred when converting to float64 - %e", err),
+				fmt.Sprintf("Error occurred when setting metric - %e", err),
 				http.StatusInternalServerError,
 			)
 			return
@@ -120,15 +122,36 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 			c.Logger.Error().Err(err).Msg("error of SetMetric")
 			http.Error(
 				res,
-				fmt.Sprintf("Error occurred when converting to int64 - %e", err),
+				fmt.Sprintf("Error occurred when setting metric - %e", err),
 				http.StatusInternalServerError,
 			)
 			return
 		}
-		res.Header().Add("content-type", "application/json")
-		res.Header().Add("Date", time.Now().Format(http.TimeFormat))
-		res.WriteHeader(200)
+		newMetricVal, err := c.MemStore.GetValueByName(updateMetric.MType, updateMetric.ID)
+		if err != nil {
+			c.Logger.Error().Err(err).Msg("can't get new metric value")
+		}
+		intVal, err := strconv.ParseInt(newMetricVal, 10, 64)
+		if err != nil {
+			c.Logger.Error().Err(err).Msg("can't parse new int64 metric value")
+		}
+		updateMetric.Delta = &intVal
 	}
+
+	jsonData, err := json.Marshal(updateMetric)
+	if err != nil {
+		http.Error(res, "can't parse JSON", http.StatusInternalServerError)
+		return
+	}
+	res.Header().Add("Content-Type", "application/json")
+	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
+	res.WriteHeader(http.StatusOK)
+	if _, err = res.Write(jsonData); err != nil {
+		c.Error().Err(err)
+		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
+		return
+	}
+
 }
 
 func (c *serverController) returnMetric(res http.ResponseWriter, req *http.Request) {
@@ -146,6 +169,8 @@ func (c *serverController) returnMetric(res http.ResponseWriter, req *http.Reque
 		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusNotFound)
 	}
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
+	res.WriteHeader(http.StatusOK)
 	if _, err = res.Write([]byte(val)); err != nil {
 		c.Error().Err(err)
 	}
@@ -184,9 +209,9 @@ func (c *serverController) getMetrics(res http.ResponseWriter, req *http.Request
 		)
 		return
 	}
-	res.Header().Add("content-type", "text/plain; charset=utf-8")
+	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
-	res.WriteHeader(200)
+	res.WriteHeader(http.StatusOK)
 }
 
 func (c *serverController) Info() *zerolog.Event {
@@ -221,10 +246,14 @@ func (c *serverController) Route() *chi.Mux {
 	router.Use(c.reqResLogging)
 	router.Route("/", func(router chi.Router) {
 		router.Get("/", c.getAllStats)
+		router.Post("/value/", c.returnJSONMetric)
+		router.Post("/update/", c.getJSONMetrics)
 		router.Get("/value/{metricType}/{metricName}", c.returnMetric)
 		router.Post("/update/{metricType}/{metricName}/{metricValue}", c.getMetrics)
-		router.Get("/value", c.returnJSONMetric)
-		router.Post("/update", c.getJSONMetrics)
+	})
+	chi.Walk(router, func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+		fmt.Printf("[%s]: '%s' has %d middlewares\n", method, route, len(middlewares))
+		return nil
 	})
 	return router
 }

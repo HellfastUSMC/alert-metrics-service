@@ -83,9 +83,17 @@ func (m *Metric) RenewMetrics() {
 func (m *Metric) SendMetrics(hostAndPort string) error {
 	fieldsValues := reflect.ValueOf(m).Elem()
 	fieldsTypes := reflect.TypeOf(m).Elem()
-	for i := 0; i < fieldsValues.NumField()-2; i++ {
-		fieldType := strings.Replace(fieldsTypes.Field(i).Type.String(), "agentstorage.", "", -1)
+	for i := 0; i < fieldsValues.NumField(); i++ {
+		//fieldType := strings.Replace(fieldsTypes.Field(i).Type.String(), "agentstorage.", "", -1)
+		var fieldType string
+		if strings.Contains(strings.ToUpper(fieldsTypes.Field(i).Type.String()), "GAUGE") {
+			fieldType = "gauge"
+		}
+		if strings.Contains(strings.ToUpper(fieldsTypes.Field(i).Type.String()), "COUNTER") {
+			fieldType = "counter"
+		}
 		metricStruct := controllers.Metrics{ID: fieldsTypes.Field(i).Name, MType: fieldType}
+		fmt.Println(fieldType)
 		if strings.ToUpper(metricStruct.MType) == "GAUGE" {
 			flVal := fieldsValues.Field(i).Float()
 			metricStruct.Value = &flVal
@@ -99,7 +107,7 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 		}
 		r, err := http.NewRequest(
 			http.MethodPost,
-			fmt.Sprintf("%s/update",
+			fmt.Sprintf("%s/update/",
 				hostAndPort),
 			bytes.NewBuffer(jsonVal))
 		if err != nil {
