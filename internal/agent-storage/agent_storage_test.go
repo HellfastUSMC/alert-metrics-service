@@ -81,7 +81,7 @@ func TestMetrics_RenewMetrics(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &Metrics{
+			m := &Metric{
 				Alloc:         tt.fields.Alloc,
 				BuckHashSys:   tt.fields.BuckHashSys,
 				Frees:         tt.fields.Frees,
@@ -136,7 +136,7 @@ func TestMetrics_SendMetrics(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &Metrics{
+			m := &Metric{
 				Alloc: tt.fields.Alloc,
 			}
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))

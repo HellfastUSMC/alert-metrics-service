@@ -22,6 +22,12 @@ type MemStorekeeper interface {
 	GetAllData() string
 }
 
+type UpdateParse struct {
+	MetricType string
+	MetricName string
+	MetricVal  string
+}
+
 func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue interface{}) error {
 	if strings.ToUpper(metricType) == "GAUGE" {
 		m.PollCount += 1
