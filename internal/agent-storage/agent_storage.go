@@ -84,7 +84,7 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 	fieldsValues := reflect.ValueOf(m).Elem()
 	fieldsTypes := reflect.TypeOf(m).Elem()
 	for i := 0; i < fieldsValues.NumField()-2; i++ {
-		fieldType := strings.Replace(fieldsTypes.Field(i).Type.String(), "storage.", "", -1)
+		fieldType := strings.Replace(fieldsTypes.Field(i).Type.String(), "agentstorage.", "", -1)
 		metricStruct := controllers.Metrics{ID: fieldsTypes.Field(i).Name, MType: fieldType}
 		if strings.ToUpper(metricStruct.MType) == "GAUGE" {
 			flVal := fieldsValues.Field(i).Float()

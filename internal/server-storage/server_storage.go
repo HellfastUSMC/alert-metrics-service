@@ -29,18 +29,43 @@ type UpdateParse struct {
 }
 
 func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue interface{}) error {
+
 	if strings.ToUpper(metricType) == "GAUGE" {
 		m.PollCount += 1
 		if _, ok := m.Counter[metricName]; !ok {
+			if reflect.TypeOf(metricValue).String() == "string" {
+				flt, err := strconv.ParseFloat(metricValue.(string), 64)
+				if err != nil {
+					return fmt.Errorf("can't convert to float64 %e", err)
+				}
+				m.Gauge[metricName] = Gauge(flt)
+				return nil
+			}
 			m.Gauge[metricName] = Gauge(reflect.ValueOf(metricValue).Elem().Float())
 			return nil
 		}
 	} else if strings.ToUpper(metricType) == "COUNTER" {
 		m.PollCount += 1
 		if _, ok := m.Counter[metricName]; !ok {
+			if reflect.TypeOf(metricValue).String() == "string" {
+				integ, err := strconv.ParseInt(metricValue.(string), 10, 64)
+				if err != nil {
+					return fmt.Errorf("can't convert to int64 %e", err)
+				}
+				m.Counter[metricName] = Counter(integ)
+				return nil
+			}
 			m.Counter[metricName] = Counter(reflect.ValueOf(metricValue).Elem().Int())
 			return nil
 		} else {
+			if reflect.TypeOf(metricValue).String() == "string" {
+				integ, err := strconv.ParseInt(metricValue.(string), 10, 64)
+				if err != nil {
+					return fmt.Errorf("can't convert to int64 %e", err)
+				}
+				m.Counter[metricName] += Counter(integ)
+				return nil
+			}
 			m.Counter[metricName] += Counter(reflect.ValueOf(metricValue).Elem().Int())
 			return nil
 		}

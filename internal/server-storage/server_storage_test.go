@@ -101,3 +101,56 @@ func TestMemStorage_GetValueByName(t *testing.T) {
 		})
 	}
 }
+
+func TestMemStorage_GetAllData(t *testing.T) {
+	type fields struct {
+		Gauge     map[string]Gauge
+		Counter   map[string]Counter
+		PollCount Counter
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "normal behaviour",
+			fields: fields{
+				Gauge:     map[string]Gauge{"Alloc": 10.5},
+				Counter:   map[string]Counter{"MAlloc": 10},
+				PollCount: 0,
+			},
+			want: "Alloc: 10.500000\nMAlloc: 10",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &MemStorage{
+				Gauge:     tt.fields.Gauge,
+				Counter:   tt.fields.Counter,
+				PollCount: tt.fields.PollCount,
+			}
+			assert.Equalf(t, tt.want, m.GetAllData(), "GetAllData()")
+		})
+	}
+}
+
+func TestNewMemStorage(t *testing.T) {
+	tests := []struct {
+		name string
+		want *MemStorage
+	}{
+		{
+			name: "normal behaviour",
+			want: &MemStorage{
+				Gauge:   map[string]Gauge{},
+				Counter: map[string]Counter{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, NewMemStorage(), "NewMemStorage()")
+		})
+	}
+}
