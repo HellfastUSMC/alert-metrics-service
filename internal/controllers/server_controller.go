@@ -1,6 +1,9 @@
 package controllers
 
 import (
+	"bytes"
+	"compress/flate"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,11 +25,18 @@ type serverController struct {
 }
 
 type logRespWriter struct {
-	data struct {
-		code int
-		size int
-	}
-	wr http.ResponseWriter
+	data *respData
+	http.ResponseWriter
+}
+
+type respData struct {
+	code int
+	size int
+}
+
+type gzipRespWriter struct {
+	http.ResponseWriter
+	Writer io.Writer
 }
 
 func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.Request) {
@@ -244,6 +254,7 @@ func (c *serverController) getAllStats(res http.ResponseWriter, _ *http.Request)
 func (c *serverController) Route() *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(c.reqResLogging)
+	router.Use(c.gzip)
 	router.Route("/", func(router chi.Router) {
 		router.Get("/", c.getAllStats)
 		router.Post("/value/", c.returnJSONMetric)
@@ -265,33 +276,72 @@ func (c *serverController) reqResLogging(h http.Handler) http.Handler {
 		method := r.Method
 
 		rw := logRespWriter{
-			data: struct {
-				code int
-				size int
-			}{code: 0, size: 0},
-			wr: res,
+			data: &respData{
+				code: 0,
+				size: 0,
+			},
+			ResponseWriter: res,
 		}
 
 		h.ServeHTTP(&rw, r)
 
 		duration := time.Since(start).String()
 
-		c.Logger.Info().Str("URI", uri).Str("method", method).Str("duration", duration).Int("code", rw.data.code).Int("size", rw.data.size)
+		c.Info().Str("URI", uri).Str("method", method).Str("duration", duration).Int("code", rw.data.code).Int("size", rw.data.size)
 	})
 }
 
 func (r *logRespWriter) Write(b []byte) (int, error) {
-	size, err := r.wr.Write(b)
+	size, err := r.ResponseWriter.Write(b)
 	r.data.size += size
 	return size, err
 }
 
 func (r *logRespWriter) WriteHeader(statusCode int) {
-	r.wr.WriteHeader(statusCode)
+	r.ResponseWriter.WriteHeader(statusCode)
 	r.data.code = statusCode
 }
 
-func (r *logRespWriter) Header() http.Header {
-	header := r.wr.Header()
-	return header
+func (c *serverController) gzip(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
+			fmt.Println("No gzip")
+			h.ServeHTTP(res, req)
+		}
+		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
+			fmt.Println("Content...")
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				c.Error().Err(err)
+			}
+			reader := flate.NewReader(bytes.NewReader(body))
+			newBody, err := io.ReadAll(reader)
+			if err != nil {
+				c.Error().Err(err)
+			}
+			req.ContentLength = int64(len(newBody))
+			req.Body = io.NopCloser(bytes.NewBuffer(newBody))
+			err = reader.Close()
+			if err != nil {
+				c.Error().Err(err)
+			}
+		}
+		if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
+			fmt.Println("Accept...")
+			gz, err := gzip.NewWriterLevel(res, gzip.BestCompression)
+			if err != nil {
+				c.Error().Err(err)
+				return
+			}
+			if err != nil {
+				c.Error().Err(err)
+			}
+			h.ServeHTTP(gzipRespWriter{res, gz}, req)
+			//fmt.Println(res, req)
+		}
+	})
+}
+
+func (w gzipRespWriter) Write(b []byte) (int, error) {
+	return w.Writer.Write(b)
 }

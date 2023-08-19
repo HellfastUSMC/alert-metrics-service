@@ -2,6 +2,7 @@ package agentstorage
 
 import (
 	"bytes"
+	"compress/flate"
 	"encoding/json"
 	"fmt"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
@@ -93,7 +94,6 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 			fieldType = "counter"
 		}
 		metricStruct := controllers.Metrics{ID: fieldsTypes.Field(i).Name, MType: fieldType}
-		fmt.Println(fieldType)
 		if strings.ToUpper(metricStruct.MType) == "GAUGE" {
 			flVal := fieldsValues.Field(i).Float()
 			metricStruct.Value = &flVal
@@ -105,11 +105,25 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 		if err != nil {
 			return fmt.Errorf("there's an error in marshalling JSON %e", err)
 		}
+
+		var buff bytes.Buffer
+		w, err := flate.NewWriter(&buff, flate.BestCompression)
+		if err != nil {
+			return fmt.Errorf("can't create new writer - %e", err)
+		}
+		_, err = w.Write(jsonVal)
+		if err != nil {
+			return fmt.Errorf("can't write compress JSON in gzip - %e", err)
+		}
+		err = w.Close()
+		if err != nil {
+			return fmt.Errorf("can't close writer - %e", err)
+		}
 		r, err := http.NewRequest(
 			http.MethodPost,
 			fmt.Sprintf("%s/update/",
 				hostAndPort),
-			bytes.NewBuffer(jsonVal))
+			bytes.NewBuffer(buff.Bytes()))
 		if err != nil {
 			return fmt.Errorf("there's an error in creating send metric request: type - %s, name - %s, value - %v, error - %e",
 				fieldType,
@@ -120,6 +134,9 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 
 		}
 		r.Header.Add("Content-Type", "application/json")
+		r.Header.Add("Accept-Encoding", "gzip")
+		r.Header.Add("Content-Encoding", "gzip")
+
 		client := &http.Client{}
 		res, err := client.Do(r)
 		if err != nil {
