@@ -78,10 +78,9 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 		}
 		updateMetric.Delta = &intVal
 	}
-
 	jsonData, err := json.Marshal(updateMetric)
 	if err != nil {
-		http.Error(res, "can't parse JSON", http.StatusInternalServerError)
+		http.Error(res, "can't write JSON", http.StatusInternalServerError)
 		return
 	}
 	res.Header().Add("Content-Type", "application/json")
@@ -102,7 +101,7 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 		return
 	}
 	if err := json.Unmarshal(body, &updateMetric); err != nil {
-		http.Error(res, "can't parse JSON", http.StatusInternalServerError)
+		http.Error(res, "can't unmarshal JSON", http.StatusInternalServerError)
 		return
 	}
 	if (strings.ToUpper(updateMetric.MType) != "GAUGE" &&
@@ -150,7 +149,7 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 
 	jsonData, err := json.Marshal(updateMetric)
 	if err != nil {
-		http.Error(res, "can't parse JSON", http.StatusInternalServerError)
+		http.Error(res, "can't marshal JSON", http.StatusInternalServerError)
 		return
 	}
 	res.Header().Add("Content-Type", "application/json")
@@ -245,7 +244,7 @@ func NewServerController(logger CLogger, conf *config.SysConfig, mStore *servers
 
 func (c *serverController) getAllStats(res http.ResponseWriter, _ *http.Request) {
 	allStats := c.MemStore.GetAllData()
-	res.Header().Add("Content-Type", "application/json")
+	res.Header().Add("Content-Type", "text/html")
 	if _, err := res.Write([]byte(allStats)); err != nil {
 		c.Error().Err(err)
 	}
@@ -304,9 +303,28 @@ func (r *logRespWriter) WriteHeader(statusCode int) {
 
 func (c *serverController) gzip(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		var newBody []byte
+		var body []byte
 		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
 			fmt.Println("No gzip")
 			h.ServeHTTP(res, req)
+		} else if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
+			fmt.Println("Accept...")
+
+			// создаём gzip.Writer поверх текущего w
+			gz, err := gzip.NewWriterLevel(res, gzip.BestSpeed)
+			if err != nil {
+				io.WriteString(res, err.Error())
+				return
+			}
+			defer gz.Close()
+			res.Header().Set("Content-Encoding", "gzip")
+			// передаём обработчику страницы переменную типа gzipWriter для вывода данных
+			h.ServeHTTP(gzipRespWriter{
+				ResponseWriter: res,
+				Writer:         gz,
+			}, req)
+			fmt.Println("ACC ENC", string(body), string(newBody))
 		}
 		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
 			fmt.Println("Content...")
@@ -315,7 +333,7 @@ func (c *serverController) gzip(h http.Handler) http.Handler {
 				c.Error().Err(err)
 			}
 			reader := flate.NewReader(bytes.NewReader(body))
-			newBody, err := io.ReadAll(reader)
+			newBody, err = io.ReadAll(reader)
 			if err != nil {
 				c.Error().Err(err)
 			}
@@ -325,19 +343,7 @@ func (c *serverController) gzip(h http.Handler) http.Handler {
 			if err != nil {
 				c.Error().Err(err)
 			}
-		}
-		if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
-			fmt.Println("Accept...")
-			gz, err := gzip.NewWriterLevel(res, gzip.BestCompression)
-			if err != nil {
-				c.Error().Err(err)
-				return
-			}
-			if err != nil {
-				c.Error().Err(err)
-			}
-			h.ServeHTTP(gzipRespWriter{res, gz}, req)
-			//fmt.Println(res, req)
+			fmt.Println("CONT ENC", string(body), string(newBody))
 		}
 	})
 }
