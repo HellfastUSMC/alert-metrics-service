@@ -101,6 +101,7 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 			intVal := fieldsValues.Field(i).Int()
 			metricStruct.Delta = &intVal
 		}
+
 		jsonVal, err := json.Marshal(metricStruct)
 		if err != nil {
 			return fmt.Errorf("there's an error in marshalling JSON %e", err)
@@ -111,6 +112,9 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 		if err != nil {
 			return fmt.Errorf("can't create new writer - %e", err)
 		}
+
+		fmt.Println(string(jsonVal))
+
 		_, err = w.Write(jsonVal)
 		if err != nil {
 			return fmt.Errorf("can't write compress JSON in gzip - %e", err)
@@ -119,11 +123,23 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 		if err != nil {
 			return fmt.Errorf("can't close writer - %e", err)
 		}
+
+		//fmt.Println(buff.Bytes())
+		//________________________________________________________________
+
+		var z bytes.Buffer
+		reader := flate.NewReader(bytes.NewReader(buff.Bytes()))
+
+		z.ReadFrom(reader)
+
+		fmt.Println(string(z.Bytes()))
+		reader.Close()
+		//________________________________________________________________
 		r, err := http.NewRequest(
 			http.MethodPost,
-			fmt.Sprintf("%s/update/",
-				hostAndPort),
-			bytes.NewBuffer(buff.Bytes()))
+			fmt.Sprintf("%s/update/", hostAndPort),
+			&buff,
+		)
 		if err != nil {
 			return fmt.Errorf("there's an error in creating send metric request: type - %s, name - %s, value - %v, error - %e",
 				fieldType,
@@ -131,7 +147,6 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 				fieldsValues.Field(i),
 				err,
 			)
-
 		}
 		r.Header.Add("Content-Type", "application/json")
 		r.Header.Add("Accept-Encoding", "gzip")

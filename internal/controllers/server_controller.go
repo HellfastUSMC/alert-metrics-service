@@ -146,7 +146,7 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 		}
 		updateMetric.Delta = &intVal
 	}
-
+	fmt.Println(updateMetric)
 	jsonData, err := json.Marshal(updateMetric)
 	if err != nil {
 		http.Error(res, "can't marshal JSON", http.StatusInternalServerError)
@@ -303,47 +303,49 @@ func (r *logRespWriter) WriteHeader(statusCode int) {
 
 func (c *serverController) gzip(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		var newBody []byte
-		var body []byte
 		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
-			fmt.Println("No gzip")
 			h.ServeHTTP(res, req)
 		} else if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
-			fmt.Println("Accept...")
 
-			// создаём gzip.Writer поверх текущего w
 			gz, err := gzip.NewWriterLevel(res, gzip.BestSpeed)
 			if err != nil {
-				io.WriteString(res, err.Error())
+				c.Error().Err(err)
+				http.Error(res, "can't compress to gzip", http.StatusInternalServerError)
 				return
 			}
 			defer gz.Close()
 			res.Header().Set("Content-Encoding", "gzip")
-			// передаём обработчику страницы переменную типа gzipWriter для вывода данных
 			h.ServeHTTP(gzipRespWriter{
 				ResponseWriter: res,
 				Writer:         gz,
 			}, req)
-			fmt.Println("ACC ENC", string(body), string(newBody))
 		}
 		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
-			fmt.Println("Content...")
 			body, err := io.ReadAll(req.Body)
+			//fmt.Println(body, req.Body)
 			if err != nil {
 				c.Error().Err(err)
 			}
+
+			var b bytes.Buffer
+
 			reader := flate.NewReader(bytes.NewReader(body))
-			newBody, err = io.ReadAll(reader)
+
+			b.ReadFrom(reader)
+
+			fmt.Println(b.Bytes())
+
+			newBody, err := io.ReadAll(reader)
 			if err != nil {
 				c.Error().Err(err)
 			}
 			req.ContentLength = int64(len(newBody))
 			req.Body = io.NopCloser(bytes.NewBuffer(newBody))
-			err = reader.Close()
-			if err != nil {
-				c.Error().Err(err)
-			}
-			fmt.Println("CONT ENC", string(body), string(newBody))
+			//err = reader.Close()
+			//if err != nil {
+			//	c.Error().Err(err)
+			//}
+			defer reader.Close()
 		}
 	})
 }
