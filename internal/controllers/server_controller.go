@@ -324,7 +324,7 @@ func (c *serverController) gzip(h http.Handler) http.Handler {
 			}
 
 			req.ContentLength = int64(len(buff.Bytes()))
-			req.Body = io.NopCloser(bytes.NewBuffer(buff.Bytes()))
+			req.Body = io.NopCloser(&buff)
 		}
 
 		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
@@ -332,6 +332,7 @@ func (c *serverController) gzip(h http.Handler) http.Handler {
 		} else if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
 
 			gz, err := gzip.NewWriterLevel(res, gzip.BestSpeed)
+
 			if err != nil {
 				c.Error().Err(err)
 				http.Error(res, "can't compress to gzip", http.StatusInternalServerError)
