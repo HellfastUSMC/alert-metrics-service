@@ -146,7 +146,6 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 		}
 		updateMetric.Delta = &intVal
 	}
-	fmt.Println(updateMetric)
 	jsonData, err := json.Marshal(updateMetric)
 	if err != nil {
 		http.Error(res, "can't marshal JSON", http.StatusInternalServerError)
@@ -303,6 +302,31 @@ func (r *logRespWriter) WriteHeader(statusCode int) {
 
 func (c *serverController) gzip(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
+
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				c.Error().Err(err)
+			}
+
+			var buff bytes.Buffer
+
+			reader := flate.NewReader(bytes.NewReader(body))
+
+			_, err = buff.ReadFrom(reader)
+			if err != nil {
+				c.Error().Err(err)
+			}
+
+			err = reader.Close()
+			if err != nil {
+				c.Error().Err(err)
+			}
+
+			req.ContentLength = int64(len(buff.Bytes()))
+			req.Body = io.NopCloser(bytes.NewBuffer(buff.Bytes()))
+		}
+
 		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
 			h.ServeHTTP(res, req)
 		} else if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
@@ -313,39 +337,15 @@ func (c *serverController) gzip(h http.Handler) http.Handler {
 				http.Error(res, "can't compress to gzip", http.StatusInternalServerError)
 				return
 			}
+
 			defer gz.Close()
+
 			res.Header().Set("Content-Encoding", "gzip")
+
 			h.ServeHTTP(gzipRespWriter{
 				ResponseWriter: res,
 				Writer:         gz,
 			}, req)
-		}
-		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
-			body, err := io.ReadAll(req.Body)
-			//fmt.Println(body, req.Body)
-			if err != nil {
-				c.Error().Err(err)
-			}
-
-			var b bytes.Buffer
-
-			reader := flate.NewReader(bytes.NewReader(body))
-
-			b.ReadFrom(reader)
-
-			fmt.Println(b.Bytes())
-
-			newBody, err := io.ReadAll(reader)
-			if err != nil {
-				c.Error().Err(err)
-			}
-			req.ContentLength = int64(len(newBody))
-			req.Body = io.NopCloser(bytes.NewBuffer(newBody))
-			//err = reader.Close()
-			//if err != nil {
-			//	c.Error().Err(err)
-			//}
-			defer reader.Close()
 		}
 	})
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
+	"io"
 	"math/rand"
 	"net/http"
 	"reflect"
@@ -85,7 +86,6 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 	fieldsValues := reflect.ValueOf(m).Elem()
 	fieldsTypes := reflect.TypeOf(m).Elem()
 	for i := 0; i < fieldsValues.NumField(); i++ {
-		//fieldType := strings.Replace(fieldsTypes.Field(i).Type.String(), "agentstorage.", "", -1)
 		var fieldType string
 		if strings.Contains(strings.ToUpper(fieldsTypes.Field(i).Type.String()), "GAUGE") {
 			fieldType = "gauge"
@@ -113,32 +113,21 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 			return fmt.Errorf("can't create new writer - %e", err)
 		}
 
-		fmt.Println(string(jsonVal))
-
 		_, err = w.Write(jsonVal)
 		if err != nil {
 			return fmt.Errorf("can't write compress JSON in gzip - %e", err)
 		}
+
 		err = w.Close()
 		if err != nil {
 			return fmt.Errorf("can't close writer - %e", err)
 		}
 
-		//fmt.Println(buff.Bytes())
-		//________________________________________________________________
-
-		var z bytes.Buffer
-		reader := flate.NewReader(bytes.NewReader(buff.Bytes()))
-
-		z.ReadFrom(reader)
-
-		fmt.Println(string(z.Bytes()))
-		reader.Close()
-		//________________________________________________________________
 		r, err := http.NewRequest(
 			http.MethodPost,
 			fmt.Sprintf("%s/update/", hostAndPort),
 			&buff,
+			//bytes.NewReader(buff.Bytes()),
 		)
 		if err != nil {
 			return fmt.Errorf("there's an error in creating send metric request: type - %s, name - %s, value - %v, error - %e",
@@ -157,6 +146,10 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 		if err != nil {
 			return fmt.Errorf("there's an error in sending request: %e", err)
 		}
+
+		resBody, _ := io.ReadAll(res.Body)
+		fmt.Println("resp body - " + string(resBody))
+
 		err = res.Body.Close()
 		if err != nil {
 			return fmt.Errorf("error in closing res body - %e", err)
