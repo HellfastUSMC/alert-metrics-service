@@ -1,8 +1,6 @@
 package controllers
 
 import (
-	"bytes"
-	"compress/flate"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
@@ -302,30 +300,32 @@ func (r *logRespWriter) WriteHeader(statusCode int) {
 
 func (c *serverController) gzip(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
-
-			body, err := io.ReadAll(req.Body)
-			if err != nil {
-				c.Error().Err(err)
-			}
-
-			var buff bytes.Buffer
-
-			reader := flate.NewReader(bytes.NewReader(body))
-
-			_, err = buff.ReadFrom(reader)
-			if err != nil {
-				c.Error().Err(err)
-			}
-
-			err = reader.Close()
-			if err != nil {
-				c.Error().Err(err)
-			}
-
-			req.ContentLength = int64(len(buff.Bytes()))
-			req.Body = io.NopCloser(&buff)
-		}
+		//if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
+		//
+		//	body, err := io.ReadAll(req.Body)
+		//	fmt.Println(string(body))
+		//	if err != nil {
+		//		c.Error().Err(err)
+		//	}
+		//
+		//	var buff bytes.Buffer
+		//
+		//	reader := flate.NewReader(bytes.NewReader(body))
+		//
+		//	_, err = buff.ReadFrom(reader)
+		//	if err != nil {
+		//		c.Error().Err(err)
+		//	}
+		//
+		//	err = reader.Close()
+		//	if err != nil {
+		//		c.Error().Err(err)
+		//	}
+		//
+		//	req.ContentLength = int64(len(buff.Bytes()))
+		//	req.Body = io.NopCloser(&buff)
+		//	fmt.Println(string(buff.Bytes()))
+		//}
 
 		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
 			h.ServeHTTP(res, req)

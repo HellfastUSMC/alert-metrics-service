@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
-	"io"
 	"math/rand"
 	"net/http"
 	"reflect"
@@ -147,8 +146,8 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 			return fmt.Errorf("there's an error in sending request: %e", err)
 		}
 
-		resBody, _ := io.ReadAll(res.Body)
-		fmt.Println("resp body - " + string(resBody))
+		//resBody, _ := io.ReadAll(res.Body)
+		//fmt.Println("resp body - " + string(resBody))
 
 		err = res.Body.Close()
 		if err != nil {
