@@ -1,15 +1,14 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"os"
-
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog"
+	"net/http"
+	"os"
+	"time"
 )
 
 func main() {
@@ -19,15 +18,31 @@ func main() {
 		log.Warn().Err(err)
 	}
 	if conf.ServerAddress == "" {
-		conf.ParseServerAddr()
+		if err := conf.ParseServerFlags(); err != nil {
+			log.Warn().Err(err)
+		}
 	}
 	controller := controllers.NewServerController(&log, conf, serverstorage.NewMemStorage())
+	if err := controller.ReadDump(); err != nil {
+		controller.Error().Err(err)
+	}
 	router := chi.NewRouter()
 	router.Mount("/", controller.Route())
 	controller.Info().Msg("Starting server at " + controller.Config.ServerAddress)
-	err = http.ListenAndServe(controller.Config.ServerAddress, router)
-	if err != nil {
-		fmt.Println(err)
-		controller.Error().Err(err)
-	}
+	go func() {
+		err = http.ListenAndServe(controller.Config.ServerAddress, router)
+		if err != nil {
+			controller.Error().Err(err)
+		}
+	}()
+	tickDump := time.NewTicker(time.Duration(controller.Config.StoreInterval) * time.Second)
+	go func() {
+		for {
+			<-tickDump.C
+			if err := controller.WriteDump(); err != nil {
+				controller.Error().Err(err)
+			}
+		}
+	}()
+	select {}
 }

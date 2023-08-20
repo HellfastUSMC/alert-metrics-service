@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/rs/zerolog"
 	"os"
 	"strconv"
 	"time"
@@ -8,7 +9,6 @@ import (
 	"github.com/HellfastUSMC/alert-metrics-service/internal/agent-storage"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
-	"github.com/rs/zerolog"
 )
 
 func main() {

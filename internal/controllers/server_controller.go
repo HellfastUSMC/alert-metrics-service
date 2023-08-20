@@ -1,11 +1,14 @@
 package controllers
 
 import (
+	"bytes"
+	"compress/flate"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -300,32 +303,30 @@ func (r *logRespWriter) WriteHeader(statusCode int) {
 
 func (c *serverController) gzip(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		//if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
-		//
-		//	body, err := io.ReadAll(req.Body)
-		//	fmt.Println(string(body))
-		//	if err != nil {
-		//		c.Error().Err(err)
-		//	}
-		//
-		//	var buff bytes.Buffer
-		//
-		//	reader := flate.NewReader(bytes.NewReader(body))
-		//
-		//	_, err = buff.ReadFrom(reader)
-		//	if err != nil {
-		//		c.Error().Err(err)
-		//	}
-		//
-		//	err = reader.Close()
-		//	if err != nil {
-		//		c.Error().Err(err)
-		//	}
-		//
-		//	req.ContentLength = int64(len(buff.Bytes()))
-		//	req.Body = io.NopCloser(&buff)
-		//	fmt.Println(string(buff.Bytes()))
-		//}
+		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
+
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				c.Error().Err(err)
+			}
+
+			var buff bytes.Buffer
+
+			reader := flate.NewReader(bytes.NewReader(body))
+
+			_, err = buff.ReadFrom(reader)
+			if err != nil {
+				c.Error().Err(err)
+			}
+
+			err = reader.Close()
+			if err != nil {
+				c.Error().Err(err)
+			}
+
+			req.ContentLength = int64(len(buff.Bytes()))
+			req.Body = io.NopCloser(&buff)
+		}
 
 		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
 			h.ServeHTTP(res, req)
@@ -353,4 +354,60 @@ func (c *serverController) gzip(h http.Handler) http.Handler {
 
 func (w gzipRespWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
+}
+
+func (c *serverController) ReadDump() error {
+	if c.Config.Recover == true {
+		file, err := os.OpenFile(c.Config.DumpPath, os.O_RDONLY|os.O_CREATE, 0755)
+		if err != nil {
+			return fmt.Errorf("can't open dump file - %e", err)
+		}
+		offset, err := file.Seek(-701, 2)
+		if err != nil {
+			return fmt.Errorf("can't seek dump file - %e", err)
+		}
+		fileEnd := make([]byte, 700)
+		_, _ = file.ReadAt(fileEnd, offset)
+		lastString := []byte(strings.Split(string(fileEnd), "\n")[1])
+		err = json.Unmarshal(lastString, c.MemStore)
+		if err != nil {
+			return fmt.Errorf("can't unmarshal dump file - %e", err)
+		}
+		err = file.Close()
+		if err != nil {
+			return fmt.Errorf("can't close dump file - %e", err)
+		}
+		return nil
+	}
+	return nil
+}
+func (c *serverController) WriteDump() error {
+	jsonMemStore, err := json.Marshal(c.MemStore)
+	if err != nil {
+		return fmt.Errorf("can't marshal dump data - %e", err)
+	}
+	pathSliceToFile := strings.Split(c.Config.DumpPath, "/")
+	if len(pathSliceToFile) > 1 {
+		pathSliceToFile = pathSliceToFile[1 : len(pathSliceToFile)-1]
+		err = os.MkdirAll("/"+strings.Join(pathSliceToFile, "/"), 0777)
+		if err != nil {
+			fmt.Println(err)
+			return fmt.Errorf("can't make dir(s) - %e", err)
+		}
+	}
+	file, err := os.OpenFile(c.Config.DumpPath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0777)
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("can't open a file - %e", err)
+	}
+	jsonMemStore = append(jsonMemStore, []byte("\n")...)
+	_, err = file.Write(jsonMemStore)
+	if err != nil {
+		return fmt.Errorf("can't write json to a file - %e", err)
+	}
+	err = file.Close()
+	if err != nil {
+		return fmt.Errorf("can't close a file - %e", err)
+	}
+	return nil
 }
