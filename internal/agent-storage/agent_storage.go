@@ -121,7 +121,6 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 		if err != nil {
 			return fmt.Errorf("can't close writer - %e", err)
 		}
-
 		r, err := http.NewRequest(
 			http.MethodPost,
 			fmt.Sprintf("%s/update/", hostAndPort),

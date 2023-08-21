@@ -33,7 +33,7 @@ func (c *SysConfig) ParseAgentFlags() error {
 	agentFlags := flag.NewFlagSet("agent config", flag.ExitOnError)
 	agentFlags.StringVar(&c.ServerAddress, "a", "localhost:8080", "Address and port of server")
 	agentFlags.Int64Var(&c.ReportInterval, "r", 2, "Report interval in seconds")
-	agentFlags.Int64Var(&c.PollInterval, "p", 1, "Metric poll interval in seconds")
+	agentFlags.Int64Var(&c.PollInterval, "p", 10, "Metric poll interval in seconds")
 	if err := agentFlags.Parse(os.Args[1:]); err != nil {
 		os.Exit(1)
 		return err

@@ -357,8 +357,11 @@ func (w gzipRespWriter) Write(b []byte) (int, error) {
 }
 
 func (c *serverController) ReadDump() error {
-	if c.Config.Recover == true {
-		file, err := os.OpenFile(c.Config.DumpPath, os.O_RDONLY|os.O_CREATE, 0755)
+	fmt.Println("READ")
+	stat, _ := os.Stat(c.Config.DumpPath)
+	fmt.Println("READ")
+	if c.Config.Recover == true && stat.Size() > 599 {
+		file, err := os.OpenFile(c.Config.DumpPath, os.O_RDONLY|os.O_CREATE, 0777)
 		if err != nil {
 			return fmt.Errorf("can't open dump file - %e", err)
 		}
@@ -369,6 +372,7 @@ func (c *serverController) ReadDump() error {
 		fileEnd := make([]byte, 700)
 		_, _ = file.ReadAt(fileEnd, offset)
 		lastString := []byte(strings.Split(string(fileEnd), "\n")[1])
+		fmt.Println("read...", string(lastString))
 		err = json.Unmarshal(lastString, c.MemStore)
 		if err != nil {
 			return fmt.Errorf("can't unmarshal dump file - %e", err)
@@ -382,7 +386,9 @@ func (c *serverController) ReadDump() error {
 	return nil
 }
 func (c *serverController) WriteDump() error {
+	fmt.Println("WRITE")
 	jsonMemStore, err := json.Marshal(c.MemStore)
+	fmt.Println("write...", string(jsonMemStore))
 	if err != nil {
 		return fmt.Errorf("can't marshal dump data - %e", err)
 	}

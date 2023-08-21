@@ -1,9 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"github.com/rs/zerolog"
 	"os"
-	"strconv"
+	"reflect"
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/agent-storage"
@@ -17,17 +18,17 @@ func main() {
 	if err != nil {
 		log.Error().Err(err)
 	}
-	if conf.ServerAddress == "" || conf.PollInterval == 0 || conf.ReportInterval == 0 {
+	if reflect.DeepEqual(*conf, config.SysConfig{}) == true {
 		if err := conf.ParseAgentFlags(); err != nil {
 			log.Error().Err(err)
 		}
 	}
 	controller := controllers.NewAgentController(&log, conf, agentstorage.NewMetricsStorage())
 	controller.Info().Msg(
-		"Starting agent with remote server addr: %s, poll interval: %d, report interval: %d\n" +
-			controller.Config.ServerAddress +
-			strconv.FormatInt(controller.Config.PollInterval, 10) +
-			strconv.FormatInt(controller.Config.ReportInterval, 10))
+		fmt.Sprintf("Starting agent with remote server addr: %s, poll interval: %d, report interval: %d",
+			controller.Config.ServerAddress,
+			controller.Config.PollInterval,
+			controller.Config.ReportInterval))
 	tickPoll := time.NewTicker(time.Duration(controller.Config.PollInterval) * time.Second)
 	tickReport := time.NewTicker(time.Duration(controller.Config.ReportInterval) * time.Second)
 	go func() {
