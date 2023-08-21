@@ -57,17 +57,20 @@ func (c *SysConfig) ParseAgentFlags() error {
 //	return config, nil
 //}
 
-func newConfig() (*SysConfig, error) {
+func NewConfig() (*SysConfig, error) {
 	config := SysConfig{}
 	return &config, nil
 }
 
 func GetAgentConfigData() (*SysConfig, error) {
-	conf, err := newConfig()
+	conf, err := NewConfig()
 	if err != nil {
 		return nil, err
 	}
 	err = conf.ParseAgentFlags()
+	if err != nil {
+		return nil, err
+	}
 	if err := env.Parse(conf); err != nil {
 		return conf, err
 	}
@@ -76,11 +79,14 @@ func GetAgentConfigData() (*SysConfig, error) {
 }
 
 func GetServerConfigData() (*SysConfig, error) {
-	conf, err := newConfig()
+	conf, err := NewConfig()
 	if err != nil {
 		return nil, err
 	}
 	err = conf.ParseServerFlags()
+	if err != nil {
+		return nil, err
+	}
 	if err := env.Parse(conf); err != nil {
 		return conf, err
 	}
