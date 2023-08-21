@@ -303,8 +303,8 @@ func (r *logRespWriter) WriteHeader(statusCode int) {
 
 func (c *serverController) gzip(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		body, _ := io.ReadAll(req.Body)
-		fmt.Println(req.URL.String(), body)
+		body1, _ := io.ReadAll(req.Body)
+		fmt.Println(req.URL.String(), body1)
 		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
 
 			body, err := io.ReadAll(req.Body)
