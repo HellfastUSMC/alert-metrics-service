@@ -359,7 +359,7 @@ func (w gzipRespWriter) Write(b []byte) (int, error) {
 func (c *serverController) ReadDump() error {
 	fmt.Println("READ")
 	_, err := os.Stat(c.Config.DumpPath)
-	if c.Config.Recover == true && err == nil {
+	if c.Config.Recover && err == nil {
 		file, err := os.OpenFile(c.Config.DumpPath, os.O_RDONLY|os.O_CREATE, 0777)
 		if err != nil {
 			return fmt.Errorf("can't open dump file - %e", err)

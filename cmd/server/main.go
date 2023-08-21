@@ -9,21 +9,25 @@ import (
 	"github.com/rs/zerolog"
 	"net/http"
 	"os"
-	"reflect"
 	"time"
 )
 
 func main() {
 	fmt.Println(os.Args, os.Environ())
 	log := zerolog.New(os.Stdout).Level(zerolog.TraceLevel)
-	conf, err := config.NewConfig()
+	//conf, err := config.NewConfig()
+	//if err != nil {
+	//	log.Warn().Err(err)
+	//}
+	//if reflect.DeepEqual(*conf, config.SysConfig{}) {
+	//	if err := conf.ParseServerFlags(); err != nil {
+	//		log.Warn().Err(err)
+	//	}
+	//}
+
+	conf, err := config.GetServerConfigData()
 	if err != nil {
-		log.Warn().Err(err)
-	}
-	if reflect.DeepEqual(*conf, config.SysConfig{}) == true {
-		if err := conf.ParseServerFlags(); err != nil {
-			log.Warn().Err(err)
-		}
+		log.Error().Err(err)
 	}
 	controller := controllers.NewServerController(&log, conf, serverstorage.NewMemStorage())
 	if err := controller.ReadDump(); err != nil {

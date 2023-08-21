@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	"github.com/caarlos0/env/v6"
@@ -41,10 +42,48 @@ func (c *SysConfig) ParseAgentFlags() error {
 	return nil
 }
 
-func NewConfig() (*SysConfig, error) {
+//func parseFlags(config *SysConfig) (*SysConfig, error) {
+//	flags := flag.NewFlagSet("agent config", flag.ExitOnError)
+//	flags.StringVar(&config.ServerAddress, "a", "localhost:8080", "Address and port of server")
+//	flags.Int64Var(&config.ReportInterval, "r", 2, "Report interval in seconds")
+//	flags.Int64Var(&config.PollInterval, "p", 10, "Metric poll interval in seconds")
+//	flags.StringVar(&config.DumpPath, "f", "/tmp/metrics-db.json", "Path to dump file string")
+//	flags.Int64Var(&config.StoreInterval, "i", 300, "Storing interval in seconds int")
+//	flags.BoolVar(&config.Recover, "r", true, "Recover from file sign bool")
+//	if err := flags.Parse(os.Args[1:]); err != nil {
+//		os.Exit(1)
+//		return nil, err
+//	}
+//	return config, nil
+//}
+
+func newConfig() (*SysConfig, error) {
 	config := SysConfig{}
-	if err := env.Parse(&config); err != nil {
-		return &config, err
-	}
 	return &config, nil
+}
+
+func GetAgentConfigData() (*SysConfig, error) {
+	conf, err := newConfig()
+	if err != nil {
+		return nil, err
+	}
+	err = conf.ParseAgentFlags()
+	if err := env.Parse(conf); err != nil {
+		return conf, err
+	}
+	fmt.Println(conf)
+	return conf, nil
+}
+
+func GetServerConfigData() (*SysConfig, error) {
+	conf, err := newConfig()
+	if err != nil {
+		return nil, err
+	}
+	err = conf.ParseServerFlags()
+	if err := env.Parse(conf); err != nil {
+		return conf, err
+	}
+	fmt.Println(conf)
+	return conf, nil
 }

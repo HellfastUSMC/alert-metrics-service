@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/rs/zerolog"
 	"os"
-	"reflect"
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/agent-storage"
@@ -15,14 +14,18 @@ import (
 func main() {
 	fmt.Println(os.Args, os.Environ())
 	log := zerolog.New(os.Stdout).Level(zerolog.InfoLevel)
-	conf, err := config.NewConfig()
+	//conf, err := config.NewConfig()
+	//if err != nil {
+	//	log.Error().Err(err)
+	//}
+	//if reflect.DeepEqual(*conf, config.SysConfig{}) {
+	//	if err := conf.ParseAgentFlags(); err != nil {
+	//		log.Error().Err(err)
+	//	}
+	//}
+	conf, err := config.GetAgentConfigData()
 	if err != nil {
 		log.Error().Err(err)
-	}
-	if reflect.DeepEqual(*conf, config.SysConfig{}) == true {
-		if err := conf.ParseAgentFlags(); err != nil {
-			log.Error().Err(err)
-		}
 	}
 	controller := controllers.NewAgentController(&log, conf, agentstorage.NewMetricsStorage())
 	controller.Info().Msg(
