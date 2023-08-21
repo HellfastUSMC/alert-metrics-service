@@ -13,14 +13,9 @@ import (
 
 func main() {
 	log := zerolog.New(os.Stdout).Level(zerolog.InfoLevel)
-	conf, err := config.NewConfig()
+	conf, err := config.GetAgentConfigData()
 	if err != nil {
 		log.Error().Err(err)
-	}
-	if conf.ServerAddress == "" || conf.PollInterval == 0 || conf.ReportInterval == 0 {
-		if err := conf.ParseAgentFlags(); err != nil {
-			log.Error().Err(err)
-		}
 	}
 	controller := controllers.NewAgentController(&log, conf, agentstorage.NewMetricsStorage())
 	controller.Info().Msg(

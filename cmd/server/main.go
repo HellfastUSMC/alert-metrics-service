@@ -14,12 +14,9 @@ import (
 
 func main() {
 	log := zerolog.New(os.Stdout).Level(zerolog.TraceLevel)
-	conf, err := config.NewConfig()
+	conf, err := config.GetServerConfigData()
 	if err != nil {
-		log.Warn().Err(err)
-	}
-	if conf.ServerAddress == "" {
-		conf.ParseServerAddr()
+		log.Error().Err(err)
 	}
 	controller := controllers.NewServerController(&log, conf, serverstorage.NewMemStorage())
 	router := chi.NewRouter()
