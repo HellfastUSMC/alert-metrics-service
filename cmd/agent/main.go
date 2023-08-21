@@ -12,17 +12,7 @@ import (
 )
 
 func main() {
-	fmt.Println(os.Args, os.Environ())
 	log := zerolog.New(os.Stdout).Level(zerolog.InfoLevel)
-	//conf, err := config.NewConfig()
-	//if err != nil {
-	//	log.Error().Err(err)
-	//}
-	//if reflect.DeepEqual(*conf, config.SysConfig{}) {
-	//	if err := conf.ParseAgentFlags(); err != nil {
-	//		log.Error().Err(err)
-	//	}
-	//}
 	conf, err := config.GetAgentConfigData()
 	if err != nil {
 		log.Error().Err(err)

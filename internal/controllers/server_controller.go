@@ -303,7 +303,8 @@ func (r *logRespWriter) WriteHeader(statusCode int) {
 
 func (c *serverController) gzip(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		fmt.Println(req.URL.String())
+		body, _ := io.ReadAll(req.Body)
+		fmt.Println(req.URL.String(), body)
 		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
 
 			body, err := io.ReadAll(req.Body)
@@ -388,7 +389,6 @@ func (c *serverController) ReadDump() error {
 func (c *serverController) WriteDump() error {
 	fmt.Println("WRITE")
 	jsonMemStore, err := json.Marshal(c.MemStore)
-	fmt.Println("write...", string(jsonMemStore))
 	if err != nil {
 		return fmt.Errorf("can't marshal dump data - %e", err)
 	}
@@ -403,10 +403,10 @@ func (c *serverController) WriteDump() error {
 	}
 	file, err := os.OpenFile(c.Config.DumpPath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0777)
 	if err != nil {
-		fmt.Println(err)
 		return fmt.Errorf("can't open a file - %e", err)
 	}
 	jsonMemStore = append(jsonMemStore, []byte("\n")...)
+	fmt.Println("write...", string(jsonMemStore))
 	_, err = file.Write(jsonMemStore)
 	if err != nil {
 		return fmt.Errorf("can't write json to a file - %e", err)
