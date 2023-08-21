@@ -13,6 +13,7 @@ import (
 )
 
 func main() {
+	fmt.Println(os.Args, os.Environ())
 	log := zerolog.New(os.Stdout).Level(zerolog.InfoLevel)
 	conf, err := config.NewConfig()
 	if err != nil {

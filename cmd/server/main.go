@@ -14,12 +14,12 @@ import (
 )
 
 func main() {
+	fmt.Println(os.Args, os.Environ())
 	log := zerolog.New(os.Stdout).Level(zerolog.TraceLevel)
 	conf, err := config.NewConfig()
 	if err != nil {
 		log.Warn().Err(err)
 	}
-	fmt.Println(reflect.DeepEqual(*conf, config.SysConfig{}))
 	if reflect.DeepEqual(*conf, config.SysConfig{}) == true {
 		if err := conf.ParseServerFlags(); err != nil {
 			log.Warn().Err(err)
@@ -39,8 +39,8 @@ func main() {
 		controller.Config.DumpPath,
 		controller.Config.Recover,
 	))
+	tickDump := time.NewTicker(time.Duration(controller.Config.StoreInterval) * time.Second)
 	go func() {
-		tickDump := time.NewTicker(time.Duration(controller.Config.StoreInterval) * time.Second)
 		for {
 			<-tickDump.C
 			fmt.Println("write???")
@@ -50,11 +50,11 @@ func main() {
 			}
 		}
 	}()
-	//go func() {
-	err = http.ListenAndServe(controller.Config.ServerAddress, router)
-	if err != nil {
-		controller.Error().Err(err)
-	}
-	//}()
+	go func() {
+		err = http.ListenAndServe(controller.Config.ServerAddress, router)
+		if err != nil {
+			controller.Error().Err(err)
+		}
+	}()
 	select {}
 }
