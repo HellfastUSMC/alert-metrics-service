@@ -366,10 +366,12 @@ func (c *serverController) ReadDump() error {
 		mute.Lock()
 		file, err := os.OpenFile(c.Config.DumpPath, os.O_RDONLY|os.O_CREATE, 0777)
 		if err != nil {
+			fmt.Println(err)
 			return fmt.Errorf("can't open dump file - %e", err)
 		}
 		offset, err := file.Seek(-701, 2)
 		if err != nil {
+			fmt.Println(err)
 			return fmt.Errorf("can't seek dump file - %e", err)
 		}
 		fileEnd := make([]byte, 700)
@@ -377,10 +379,12 @@ func (c *serverController) ReadDump() error {
 		lastString := []byte(strings.Split(string(fileEnd), "\n")[1])
 		err = json.Unmarshal(lastString, c.MemStore)
 		if err != nil {
+			fmt.Println(err)
 			return fmt.Errorf("can't unmarshal dump file - %e", err)
 		}
 		err = file.Close()
 		if err != nil {
+			fmt.Println(err)
 			return fmt.Errorf("can't close dump file - %e", err)
 		}
 		c.Info().Msg(fmt.Sprintf("metrics recieved from file %s", c.Config.DumpPath))
@@ -388,6 +392,7 @@ func (c *serverController) ReadDump() error {
 		mute.Unlock()
 		return nil
 	}
+	c.Info().Msg(fmt.Sprintf("nothing to recieve from file %s", c.Config.DumpPath))
 	return nil
 }
 func (c *serverController) WriteDump() error {
@@ -424,6 +429,9 @@ func (c *serverController) WriteDump() error {
 }
 
 func (c *serverController) StartServer() {
+	if err := c.ReadDump(); err != nil {
+		c.Error().Err(err)
+	}
 	router := chi.NewRouter()
 	router.Mount("/", c.Route())
 	c.Info().Msg(fmt.Sprintf(
@@ -449,4 +457,5 @@ func (c *serverController) StartDumping() {
 			}
 		}
 	}()
+	select {}
 }
