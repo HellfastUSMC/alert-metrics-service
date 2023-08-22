@@ -419,3 +419,31 @@ func (c *serverController) WriteDump() error {
 	c.Info().Msg(fmt.Sprintf("metrics dumped to file %s", c.Config.DumpPath))
 	return nil
 }
+
+func (c *serverController) StartServer() {
+	router := chi.NewRouter()
+	router.Mount("/", c.Route())
+	c.Info().Msg(fmt.Sprintf(
+		"Starting server at %s with store interval %ds, dump path %s and recover state is %v",
+		c.Config.ServerAddress,
+		c.Config.StoreInterval,
+		c.Config.DumpPath,
+		c.Config.Recover,
+	))
+	err := http.ListenAndServe(c.Config.ServerAddress, c.Route())
+	if err != nil {
+		c.Error().Err(err)
+	}
+}
+
+func (c *serverController) StartDumping() {
+	tickDump := time.NewTicker(time.Duration(c.Config.StoreInterval) * time.Second)
+	go func() {
+		for {
+			<-tickDump.C
+			if err := c.WriteDump(); err != nil {
+				c.Error().Err(err)
+			}
+		}
+	}()
+}
