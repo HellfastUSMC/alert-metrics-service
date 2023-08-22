@@ -305,8 +305,6 @@ func (r *logRespWriter) WriteHeader(statusCode int) {
 
 func (c *serverController) gzip(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		//fmt.Println(c.MemStore)
-		fmt.Println(req.URL.String())
 		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
 
 			body, err := io.ReadAll(req.Body)
@@ -367,7 +365,6 @@ func (c *serverController) ReadDump() error {
 		mute.Lock()
 		file, err := os.OpenFile(c.Config.DumpPath, os.O_RDONLY|os.O_CREATE, 0777)
 		if err != nil {
-			fmt.Println(err)
 			return fmt.Errorf("can't open dump file - %e", err)
 		}
 		//offset, err := file.Seek(-701, 2)
@@ -379,12 +376,12 @@ func (c *serverController) ReadDump() error {
 		//_, _ = file.ReadAt(fileEnd, offset)
 		//lastString := []byte(strings.Split(string(fileEnd), "\n")[1])
 		scanner := bufio.NewScanner(file)
+		strs := []string{}
 		for scanner.Scan() {
+			strs = append(strs, scanner.Text())
 		}
-		fmt.Println(scanner.Text())
-		err = json.Unmarshal(scanner.Bytes(), c.MemStore)
+		err = json.Unmarshal([]byte(strs[len(strs)-2]), c.MemStore)
 		if err != nil {
-			fmt.Println(err)
 			return fmt.Errorf("can't unmarshal dump file - %e", err)
 		}
 		err = file.Close()
@@ -392,7 +389,6 @@ func (c *serverController) ReadDump() error {
 			return fmt.Errorf("can't close dump file - %e", err)
 		}
 		c.Info().Msg(fmt.Sprintf("metrics recieved from file %s", c.Config.DumpPath))
-		fmt.Println(c.MemStore)
 		mute.Unlock()
 		return nil
 	}
