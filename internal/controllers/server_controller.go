@@ -261,10 +261,10 @@ func (c *serverController) Route() *chi.Mux {
 		router.Get("/value/{metricType}/{metricName}", c.returnMetric)
 		router.Post("/update/{metricType}/{metricName}/{metricValue}", c.getMetrics)
 	})
-	chi.Walk(router, func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
-		fmt.Printf("[%s]: '%s' has %d middlewares\n", method, route, len(middlewares))
-		return nil
-	})
+	//chi.Walk(router, func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+	//	fmt.Printf("[%s]: '%s' has %d middlewares\n", method, route, len(middlewares))
+	//	return nil
+	//})
 	return router
 }
 
@@ -304,7 +304,7 @@ func (r *logRespWriter) WriteHeader(statusCode int) {
 func (c *serverController) gzip(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		//fmt.Println(c.MemStore)
-		//fmt.Println(req.URL.String())
+		fmt.Println(req.URL.String())
 		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
 
 			body, err := io.ReadAll(req.Body)

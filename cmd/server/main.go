@@ -19,6 +19,7 @@ func main() {
 		controller.Error().Err(err)
 	}
 	controller.StartDumping()
-	controller.StartServer()
+
+	go controller.StartServer()
 	select {}
 }
