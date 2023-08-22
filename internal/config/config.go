@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/caarlos0/env/v6"
@@ -74,7 +73,7 @@ func GetAgentConfigData() (*SysConfig, error) {
 	if err := env.Parse(conf); err != nil {
 		return conf, err
 	}
-	fmt.Println(conf)
+	//fmt.Println(conf)
 	return conf, nil
 }
 
@@ -90,6 +89,6 @@ func GetServerConfigData() (*SysConfig, error) {
 	if err := env.Parse(conf); err != nil {
 		return conf, err
 	}
-	fmt.Println(conf)
+	//fmt.Println(conf)
 	return conf, nil
 }

@@ -303,7 +303,8 @@ func (r *logRespWriter) WriteHeader(statusCode int) {
 
 func (c *serverController) gzip(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		fmt.Println(req.URL.String())
+		//fmt.Println(c.MemStore)
+		//fmt.Println(req.URL.String())
 		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
 
 			body, err := io.ReadAll(req.Body)
@@ -358,7 +359,7 @@ func (w gzipRespWriter) Write(b []byte) (int, error) {
 }
 
 func (c *serverController) ReadDump() error {
-	fmt.Println("READ")
+	//fmt.Println("READ")
 	_, err := os.Stat(c.Config.DumpPath)
 	if c.Config.Recover && err == nil {
 		file, err := os.OpenFile(c.Config.DumpPath, os.O_RDONLY|os.O_CREATE, 0777)
@@ -372,7 +373,7 @@ func (c *serverController) ReadDump() error {
 		fileEnd := make([]byte, 700)
 		_, _ = file.ReadAt(fileEnd, offset)
 		lastString := []byte(strings.Split(string(fileEnd), "\n")[1])
-		fmt.Println("read...", string(lastString))
+		//fmt.Println("read...", string(lastString))
 		err = json.Unmarshal(lastString, c.MemStore)
 		if err != nil {
 			return fmt.Errorf("can't unmarshal dump file - %e", err)
@@ -381,14 +382,15 @@ func (c *serverController) ReadDump() error {
 		if err != nil {
 			return fmt.Errorf("can't close dump file - %e", err)
 		}
+		c.Info().Msg(fmt.Sprintf("metrics recieved from file %s", c.Config.DumpPath))
 		return nil
 	}
 	return nil
 }
 func (c *serverController) WriteDump() error {
-	fmt.Println("WRITE")
+	//fmt.Println("WRITE")
 	jsonMemStore, err := json.Marshal(c.MemStore)
-	fmt.Println("write...", string(jsonMemStore))
+	//fmt.Println("write...", string(jsonMemStore))
 	if err != nil {
 		return fmt.Errorf("can't marshal dump data - %e", err)
 	}
@@ -397,7 +399,7 @@ func (c *serverController) WriteDump() error {
 		pathSliceToFile = pathSliceToFile[1 : len(pathSliceToFile)-1]
 		err = os.MkdirAll("/"+strings.Join(pathSliceToFile, "/"), 0777)
 		if err != nil {
-			fmt.Println(err)
+			//fmt.Println(err)
 			return fmt.Errorf("can't make dir(s) - %e", err)
 		}
 	}
@@ -414,5 +416,6 @@ func (c *serverController) WriteDump() error {
 	if err != nil {
 		return fmt.Errorf("can't close a file - %e", err)
 	}
+	c.Info().Msg(fmt.Sprintf("metrics dumped to file %s", c.Config.DumpPath))
 	return nil
 }

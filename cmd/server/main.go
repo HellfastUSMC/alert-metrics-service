@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	log := zerolog.New(os.Stdout).Level(zerolog.TraceLevel)
+	log := zerolog.New(os.Stdout).Level(zerolog.TraceLevel).With().Timestamp().Logger()
 	conf, err := config.GetServerConfigData()
 	if err != nil {
 		log.Error().Err(err)
@@ -31,6 +31,12 @@ func main() {
 		controller.Config.DumpPath,
 		controller.Config.Recover,
 	))
+	go func() {
+		err = http.ListenAndServe(controller.Config.ServerAddress, router)
+		if err != nil {
+			controller.Error().Err(err)
+		}
+	}()
 	tickDump := time.NewTicker(time.Duration(controller.Config.StoreInterval) * time.Second)
 	go func() {
 		for {
@@ -38,12 +44,6 @@ func main() {
 			if err := controller.WriteDump(); err != nil {
 				controller.Error().Err(err)
 			}
-		}
-	}()
-	go func() {
-		err = http.ListenAndServe(controller.Config.ServerAddress, router)
-		if err != nil {
-			controller.Error().Err(err)
 		}
 	}()
 	select {}
