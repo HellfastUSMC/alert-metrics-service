@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bufio"
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
@@ -369,22 +370,25 @@ func (c *serverController) ReadDump() error {
 			fmt.Println(err)
 			return fmt.Errorf("can't open dump file - %e", err)
 		}
-		offset, err := file.Seek(-701, 2)
-		if err != nil {
-			fmt.Println(err)
-			return fmt.Errorf("can't seek dump file - %e", err)
+		//offset, err := file.Seek(-701, 2)
+		//if err != nil {
+		//	fmt.Println(err)
+		//	return fmt.Errorf("can't seek dump file - %e", err)
+		//}
+		//fileEnd := make([]byte, 700)
+		//_, _ = file.ReadAt(fileEnd, offset)
+		//lastString := []byte(strings.Split(string(fileEnd), "\n")[1])
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
 		}
-		fileEnd := make([]byte, 700)
-		_, _ = file.ReadAt(fileEnd, offset)
-		lastString := []byte(strings.Split(string(fileEnd), "\n")[1])
-		err = json.Unmarshal(lastString, c.MemStore)
+		fmt.Println(scanner.Text())
+		err = json.Unmarshal(scanner.Bytes(), c.MemStore)
 		if err != nil {
 			fmt.Println(err)
 			return fmt.Errorf("can't unmarshal dump file - %e", err)
 		}
 		err = file.Close()
 		if err != nil {
-			fmt.Println(err)
 			return fmt.Errorf("can't close dump file - %e", err)
 		}
 		c.Info().Msg(fmt.Sprintf("metrics recieved from file %s", c.Config.DumpPath))
