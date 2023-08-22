@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
@@ -16,10 +17,12 @@ func main() {
 	}
 	controller := controllers.NewServerController(&log, conf, serverstorage.NewMemStorage())
 	if err := controller.ReadDump(); err != nil {
+		fmt.Println(controller.MemStore)
 		controller.Error().Err(err)
 	}
-	controller.StartDumping()
+	//time.Sleep(time.Duration(controller.Config.StoreInterval) * time.Second)
 
-	go controller.StartServer()
+	controller.StartDumping()
+	controller.StartServer()
 	select {}
 }

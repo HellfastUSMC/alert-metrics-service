@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
@@ -359,9 +360,10 @@ func (w gzipRespWriter) Write(b []byte) (int, error) {
 }
 
 func (c *serverController) ReadDump() error {
-	//fmt.Println("READ")
 	_, err := os.Stat(c.Config.DumpPath)
 	if c.Config.Recover && err == nil {
+		mute := &sync.Mutex{}
+		mute.Lock()
 		file, err := os.OpenFile(c.Config.DumpPath, os.O_RDONLY|os.O_CREATE, 0777)
 		if err != nil {
 			return fmt.Errorf("can't open dump file - %e", err)
@@ -373,7 +375,6 @@ func (c *serverController) ReadDump() error {
 		fileEnd := make([]byte, 700)
 		_, _ = file.ReadAt(fileEnd, offset)
 		lastString := []byte(strings.Split(string(fileEnd), "\n")[1])
-		//fmt.Println("read...", string(lastString))
 		err = json.Unmarshal(lastString, c.MemStore)
 		if err != nil {
 			return fmt.Errorf("can't unmarshal dump file - %e", err)
@@ -383,14 +384,16 @@ func (c *serverController) ReadDump() error {
 			return fmt.Errorf("can't close dump file - %e", err)
 		}
 		c.Info().Msg(fmt.Sprintf("metrics recieved from file %s", c.Config.DumpPath))
+		fmt.Println(c.MemStore)
+		mute.Unlock()
 		return nil
 	}
 	return nil
 }
 func (c *serverController) WriteDump() error {
-	//fmt.Println("WRITE")
+	mute := &sync.Mutex{}
+	mute.Lock()
 	jsonMemStore, err := json.Marshal(c.MemStore)
-	//fmt.Println("write...", string(jsonMemStore))
 	if err != nil {
 		return fmt.Errorf("can't marshal dump data - %e", err)
 	}
@@ -399,7 +402,6 @@ func (c *serverController) WriteDump() error {
 		pathSliceToFile = pathSliceToFile[1 : len(pathSliceToFile)-1]
 		err = os.MkdirAll("/"+strings.Join(pathSliceToFile, "/"), 0777)
 		if err != nil {
-			//fmt.Println(err)
 			return fmt.Errorf("can't make dir(s) - %e", err)
 		}
 	}
@@ -417,6 +419,7 @@ func (c *serverController) WriteDump() error {
 		return fmt.Errorf("can't close a file - %e", err)
 	}
 	c.Info().Msg(fmt.Sprintf("metrics dumped to file %s", c.Config.DumpPath))
+	mute.Unlock()
 	return nil
 }
 
