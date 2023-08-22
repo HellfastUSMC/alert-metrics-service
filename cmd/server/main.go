@@ -31,12 +31,6 @@ func main() {
 		controller.Config.DumpPath,
 		controller.Config.Recover,
 	))
-	go func() {
-		err = http.ListenAndServe(controller.Config.ServerAddress, router)
-		if err != nil {
-			controller.Error().Err(err)
-		}
-	}()
 	tickDump := time.NewTicker(time.Duration(controller.Config.StoreInterval) * time.Second)
 	go func() {
 		for {
@@ -46,5 +40,10 @@ func main() {
 			}
 		}
 	}()
-	select {}
+	//go func() {
+	err = http.ListenAndServe(controller.Config.ServerAddress, router)
+	if err != nil {
+		controller.Error().Err(err)
+	}
+	//}()
 }

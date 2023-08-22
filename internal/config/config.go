@@ -73,7 +73,6 @@ func GetAgentConfigData() (*SysConfig, error) {
 	if err := env.Parse(conf); err != nil {
 		return conf, err
 	}
-	//fmt.Println(conf)
 	return conf, nil
 }
 
@@ -89,6 +88,5 @@ func GetServerConfigData() (*SysConfig, error) {
 	if err := env.Parse(conf); err != nil {
 		return conf, err
 	}
-	//fmt.Println(conf)
 	return conf, nil
 }
