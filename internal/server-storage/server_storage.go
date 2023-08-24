@@ -59,7 +59,7 @@ func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue
 	if strings.ToUpper(metricType) == GaugeStr {
 		m.PollCount += 1
 		if _, ok := m.Counter[metricName]; !ok {
-			if reflect.TypeOf(metricValue).String() == "string" {
+			if fmt.Sprintf("%T", metricValue) == "string" {
 				flt, err := strconv.ParseFloat(metricValue.(string), 64)
 				if err != nil {
 					return fmt.Errorf("can't convert to float64 %e", err)
@@ -75,7 +75,7 @@ func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue
 	if strings.ToUpper(metricType) == CounterStr {
 		m.PollCount += 1
 		if _, ok := m.Counter[metricName]; !ok {
-			if reflect.TypeOf(metricValue).String() == "string" {
+			if fmt.Sprintf("%T", metricValue) == "string" {
 				integ, err := strconv.ParseInt(metricValue.(string), 10, 64)
 				if err != nil {
 					return fmt.Errorf("can't convert to int64 %e", err)
@@ -86,7 +86,7 @@ func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue
 			m.Counter[metricName] = Counter(reflect.ValueOf(metricValue).Elem().Int())
 			return nil
 		} else {
-			if reflect.TypeOf(metricValue).String() == "string" {
+			if fmt.Sprintf("%T", metricValue) == "string" {
 				integ, err := strconv.ParseInt(metricValue.(string), 10, 64)
 				if err != nil {
 					return fmt.Errorf("can't convert to int64 %e", err)
