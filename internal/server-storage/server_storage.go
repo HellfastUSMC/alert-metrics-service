@@ -20,12 +20,21 @@ type MemStorage struct {
 	Gauge     map[string]Gauge
 	Counter   map[string]Counter
 	PollCount Counter
+	Dump      IOHandler
+}
+
+type Dump struct {
 }
 
 type CLogger interface {
 	Info() *zerolog.Event
 	Warn() *zerolog.Event
 	Error() *zerolog.Event
+}
+
+type IOHandler interface {
+	WriteDump(dumpPath string, log CLogger, storage *MemStorage) error
+	ReadDump(dumpPath string, recover bool, log CLogger, storage *MemStorage) error
 }
 
 const (
@@ -37,8 +46,8 @@ type MemStorekeeper interface {
 	SetMetric(metricType string, metricName string, metricValue interface{}) error
 	GetValueByName(metricType string, metricName string) (string, error)
 	GetAllData() string
-	ReadDump(dumpPath string, recover bool, log CLogger) error
-	WriteDump(dumpPath string, log CLogger) error
+	//WriteDump(dumpPath string, log CLogger, storage *MemStorage) error
+	//ReadDump(dumpPath string, recover bool, log CLogger, storage *MemStorage) error
 }
 
 type UpdateParse struct {
@@ -121,14 +130,16 @@ func (m *MemStorage) GetAllData() string {
 	return strings.Join(allStats, "\n")
 }
 
-func NewMemStorage() *MemStorage {
+func NewMemStorage(dump *Dump) *MemStorage {
 	return &MemStorage{
-		Gauge:   map[string]Gauge{},
-		Counter: map[string]Counter{},
+		Gauge:     map[string]Gauge{},
+		Counter:   map[string]Counter{},
+		PollCount: 0,
+		Dump:      dump,
 	}
 }
 
-func (m *MemStorage) ReadDump(dumpPath string, recover bool, log CLogger) error {
+func (d Dump) ReadDump(dumpPath string, recover bool, log CLogger, storage *MemStorage) error {
 	_, err := os.Stat(dumpPath)
 	if recover && err == nil {
 		mute := &sync.Mutex{}
@@ -142,7 +153,7 @@ func (m *MemStorage) ReadDump(dumpPath string, recover bool, log CLogger) error 
 		for scanner.Scan() {
 			strs = append(strs, scanner.Text())
 		}
-		err = json.Unmarshal([]byte(strs[len(strs)-2]), m)
+		err = json.Unmarshal([]byte(strs[len(strs)-2]), storage)
 		if err != nil {
 			return fmt.Errorf("can't unmarshal dump file - %e", err)
 		}
@@ -157,10 +168,10 @@ func (m *MemStorage) ReadDump(dumpPath string, recover bool, log CLogger) error 
 	log.Info().Msg(fmt.Sprintf("nothing to recieve from file %s", dumpPath))
 	return nil
 }
-func (m *MemStorage) WriteDump(dumpPath string, log CLogger) error {
+func (d Dump) WriteDump(dumpPath string, log CLogger, storage *MemStorage) error {
 	mute := &sync.Mutex{}
 	mute.Lock()
-	jsonMemStore, err := json.Marshal(m)
+	jsonMemStore, err := json.Marshal(storage)
 	if err != nil {
 		return fmt.Errorf("can't marshal dump data - %e", err)
 	}
@@ -188,4 +199,8 @@ func (m *MemStorage) WriteDump(dumpPath string, log CLogger) error {
 	log.Info().Msg(fmt.Sprintf("metrics dumped to file %s", dumpPath))
 	mute.Unlock()
 	return nil
+}
+
+func NewDump() *Dump {
+	return &Dump{}
 }

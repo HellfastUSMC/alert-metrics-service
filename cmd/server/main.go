@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 	"time"
-	
+
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
@@ -19,15 +19,16 @@ func main() {
 	if err != nil {
 		log.Error().Err(err)
 	}
-	memStore := serverstorage.NewMemStorage()
+	memStore := serverstorage.NewMemStorage(serverstorage.NewDump())
 	controller := controllers.NewServerController(&log, conf, memStore)
 	tickDump := time.NewTicker(time.Duration(controller.Config.StoreInterval) * time.Second)
 	go func() {
 		for {
 			<-tickDump.C
-			if err := controller.MemStore.WriteDump(
+			if err := controller.MemStore(
 				controller.Config.DumpPath,
 				controller.Logger,
+				memStore,
 			); err != nil {
 				log.Error().Err(err)
 			}
@@ -37,6 +38,7 @@ func main() {
 		controller.Config.DumpPath,
 		controller.Config.Recover,
 		controller.Logger,
+		memStore,
 	); err != nil {
 		log.Error().Err(err)
 	}
