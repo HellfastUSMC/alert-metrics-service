@@ -48,6 +48,11 @@ type Metric struct {
 	RandomValue   Gauge
 }
 
+const (
+	gaugeStr   = "GAUGE"
+	counterStr = "COUNTER"
+)
+
 func (m *Metric) RenewMetrics() {
 	var memstat runtime.MemStats
 	runtime.ReadMemStats(&memstat)
@@ -86,14 +91,14 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 	fieldsTypes := reflect.TypeOf(m).Elem()
 	for i := 0; i < fieldsValues.NumField(); i++ {
 		var fieldType string
-		if strings.Contains(strings.ToUpper(fieldsTypes.Field(i).Type.String()), "GAUGE") {
-			fieldType = "gauge"
+		if strings.Contains(strings.ToUpper(fieldsTypes.Field(i).Type.String()), gaugeStr) {
+			fieldType = strings.ToLower(gaugeStr)
 		}
-		if strings.Contains(strings.ToUpper(fieldsTypes.Field(i).Type.String()), "COUNTER") {
-			fieldType = "counter"
+		if strings.Contains(strings.ToUpper(fieldsTypes.Field(i).Type.String()), counterStr) {
+			fieldType = strings.ToLower(counterStr)
 		}
 		metricStruct := controllers.Metrics{ID: fieldsTypes.Field(i).Name, MType: fieldType}
-		if strings.ToUpper(metricStruct.MType) == "GAUGE" {
+		if strings.ToUpper(metricStruct.MType) == gaugeStr {
 			flVal := fieldsValues.Field(i).Float()
 			metricStruct.Value = &flVal
 		} else {

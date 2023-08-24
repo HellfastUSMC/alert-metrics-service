@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/rs/zerolog"
 	"os"
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/agent-storage"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
+	"github.com/rs/zerolog"
 )
 
 func main() {
@@ -17,8 +17,9 @@ func main() {
 	if err != nil {
 		log.Error().Err(err)
 	}
-	controller := controllers.NewAgentController(&log, conf, agentstorage.NewMetricsStorage())
-	controller.Info().Msg(
+	memStore := agentstorage.NewMetricsStorage()
+	controller := controllers.NewAgentController(&log, conf, memStore)
+	log.Info().Msg(
 		fmt.Sprintf("Starting agent with remote server addr: %s, poll interval: %d, report interval: %d",
 			controller.Config.ServerAddress,
 			controller.Config.PollInterval,
@@ -35,7 +36,7 @@ func main() {
 		for {
 			<-tickReport.C
 			if err := controller.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {
-				controller.Error().Err(err)
+				log.Error().Err(err)
 			}
 		}
 	}()

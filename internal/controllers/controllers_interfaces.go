@@ -13,6 +13,11 @@ type agentHandler interface {
 	SendMetrics(string) error
 }
 
+const (
+	GaugeStr   = "GAUGE"
+	CounterStr = "COUNTER"
+)
+
 type Metrics struct {
 	ID    string   `json:"id"`              // имя метрики
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter

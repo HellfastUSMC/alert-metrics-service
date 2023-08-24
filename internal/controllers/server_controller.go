@@ -1,21 +1,16 @@
 package controllers
 
 import (
-	"bufio"
-	"bytes"
-	"compress/flate"
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/middlewares"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog"
@@ -25,21 +20,6 @@ type serverController struct {
 	Logger   CLogger
 	Config   *config.SysConfig
 	MemStore serverstorage.MemStorekeeper
-}
-
-type logRespWriter struct {
-	data *respData
-	http.ResponseWriter
-}
-
-type respData struct {
-	code int
-	size int
-}
-
-type gzipRespWriter struct {
-	http.ResponseWriter
-	Writer io.Writer
 }
 
 func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.Request) {
@@ -54,7 +34,7 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 		return
 	}
 
-	if strings.ToUpper(updateMetric.MType) != "GAUGE" && strings.ToUpper(updateMetric.MType) != "COUNTER" {
+	if strings.ToUpper(updateMetric.MType) != GaugeStr && strings.ToUpper(updateMetric.MType) != CounterStr {
 		http.Error(res, "Wrong metric type", http.StatusBadRequest)
 		return
 	}
@@ -64,7 +44,7 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusNotFound)
 		return
 	}
-	if strings.ToUpper(updateMetric.MType) == "GAUGE" {
+	if strings.ToUpper(updateMetric.MType) == GaugeStr {
 		flVal, err := strconv.ParseFloat(val, 64)
 		if err != nil {
 			c.Error().Err(err)
@@ -72,7 +52,7 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 			return
 		}
 		updateMetric.Value = &flVal
-	} else if strings.ToUpper(updateMetric.MType) == "COUNTER" {
+	} else if strings.ToUpper(updateMetric.MType) == CounterStr {
 		intVal, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
 			c.Error().Err(err)
@@ -107,15 +87,15 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 		http.Error(res, "can't unmarshal JSON", http.StatusInternalServerError)
 		return
 	}
-	if (strings.ToUpper(updateMetric.MType) != "GAUGE" &&
-		strings.ToUpper(updateMetric.MType) != "COUNTER") ||
+	if (strings.ToUpper(updateMetric.MType) != GaugeStr &&
+		strings.ToUpper(updateMetric.MType) != CounterStr) ||
 		(updateMetric.Value == nil &&
 			updateMetric.Delta == nil) {
 		http.Error(res, "Wrong metric type or empty value", http.StatusBadRequest)
 		return
 	}
 
-	if strings.ToUpper(updateMetric.MType) == "GAUGE" {
+	if strings.ToUpper(updateMetric.MType) == GaugeStr {
 		err := c.MemStore.SetMetric(updateMetric.MType, updateMetric.ID, updateMetric.Value)
 		if err != nil {
 			c.Logger.Error().Err(err).Msg("error of SetMetric")
@@ -128,7 +108,7 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 		}
 	}
 
-	if strings.ToUpper(updateMetric.MType) == "COUNTER" {
+	if strings.ToUpper(updateMetric.MType) == CounterStr {
 		err := c.MemStore.SetMetric(updateMetric.MType, updateMetric.ID, updateMetric.Delta)
 		if err != nil {
 			c.Logger.Error().Err(err).Msg("error of SetMetric")
@@ -170,7 +150,7 @@ func (c *serverController) returnMetric(res http.ResponseWriter, req *http.Reque
 	updateURL.MetricType = chi.URLParam(req, "metricType")
 	updateURL.MetricName = chi.URLParam(req, "metricName")
 
-	if strings.ToUpper(updateURL.MetricType) != "GAUGE" && strings.ToUpper(updateURL.MetricType) != "COUNTER" {
+	if strings.ToUpper(updateURL.MetricType) != GaugeStr && strings.ToUpper(updateURL.MetricType) != CounterStr {
 		http.Error(res, "Wrong metric type", http.StatusBadRequest)
 		return
 	}
@@ -193,19 +173,19 @@ func (c *serverController) getMetrics(res http.ResponseWriter, req *http.Request
 	updateURL.MetricName = chi.URLParam(req, "metricName")
 	updateURL.MetricVal = chi.URLParam(req, "metricValue")
 
-	if strings.ToUpper(updateURL.MetricType) != "GAUGE" &&
-		strings.ToUpper(updateURL.MetricType) != "COUNTER" ||
+	if strings.ToUpper(updateURL.MetricType) != GaugeStr &&
+		strings.ToUpper(updateURL.MetricType) != CounterStr ||
 		updateURL.MetricVal == "" {
 		http.Error(res, "Wrong metric type or empty value", http.StatusBadRequest)
 		return
 	}
-	if strings.ToUpper(updateURL.MetricType) == "GAUGE" {
+	if strings.ToUpper(updateURL.MetricType) == GaugeStr {
 		if _, err := strconv.ParseFloat(updateURL.MetricVal, 64); err != nil {
 			http.Error(res, "Can't parse metric value", http.StatusBadRequest)
 			return
 		}
 	}
-	if strings.ToUpper(updateURL.MetricType) == "COUNTER" {
+	if strings.ToUpper(updateURL.MetricType) == CounterStr {
 		if _, err := strconv.ParseInt(updateURL.MetricVal, 10, 64); err != nil {
 			http.Error(res, "Can't parse metric value", http.StatusBadRequest)
 			return
@@ -236,6 +216,7 @@ func (c *serverController) Warn() *zerolog.Event {
 func (c *serverController) Error() *zerolog.Event {
 	return c.Logger.Error()
 }
+
 func NewServerController(logger CLogger, conf *config.SysConfig, mStore *serverstorage.MemStorage) *serverController {
 	return &serverController{
 		Logger:   logger,
@@ -254,8 +235,8 @@ func (c *serverController) getAllStats(res http.ResponseWriter, _ *http.Request)
 
 func (c *serverController) Route() *chi.Mux {
 	router := chi.NewRouter()
-	router.Use(c.reqResLogging)
-	router.Use(c.gzip)
+	router.Use(middlewares.ReqResLogging(c.Logger))
+	router.Use(middlewares.Gzip(c.Logger))
 	router.Route("/", func(router chi.Router) {
 		router.Get("/", c.getAllStats)
 		router.Post("/value/", c.returnJSONMetric)
@@ -263,199 +244,5 @@ func (c *serverController) Route() *chi.Mux {
 		router.Get("/value/{metricType}/{metricName}", c.returnMetric)
 		router.Post("/update/{metricType}/{metricName}/{metricValue}", c.getMetrics)
 	})
-	//chi.Walk(router, func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
-	//	fmt.Printf("[%s]: '%s' has %d middlewares\n", method, route, len(middlewares))
-	//	return nil
-	//})
 	return router
-}
-
-func (c *serverController) reqResLogging(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(res http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		uri := r.RequestURI
-		method := r.Method
-
-		rw := logRespWriter{
-			data: &respData{
-				code: 0,
-				size: 0,
-			},
-			ResponseWriter: res,
-		}
-
-		h.ServeHTTP(&rw, r)
-
-		duration := time.Since(start).String()
-
-		c.Info().Str("URI", uri).Str("method", method).Str("duration", duration).Int("code", rw.data.code).Int("size", rw.data.size)
-	})
-}
-
-func (r *logRespWriter) Write(b []byte) (int, error) {
-	size, err := r.ResponseWriter.Write(b)
-	r.data.size += size
-	return size, err
-}
-
-func (r *logRespWriter) WriteHeader(statusCode int) {
-	r.ResponseWriter.WriteHeader(statusCode)
-	r.data.code = statusCode
-}
-
-func (c *serverController) gzip(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
-
-			body, err := io.ReadAll(req.Body)
-			if err != nil {
-				c.Error().Err(err)
-			}
-
-			var buff bytes.Buffer
-
-			reader := flate.NewReader(bytes.NewReader(body))
-
-			_, err = buff.ReadFrom(reader)
-			if err != nil {
-				c.Error().Err(err)
-			}
-
-			err = reader.Close()
-			if err != nil {
-				c.Error().Err(err)
-			}
-
-			req.ContentLength = int64(len(buff.Bytes()))
-			req.Body = io.NopCloser(&buff)
-		}
-
-		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
-			h.ServeHTTP(res, req)
-		} else if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
-
-			gz, err := gzip.NewWriterLevel(res, gzip.BestSpeed)
-
-			if err != nil {
-				c.Error().Err(err)
-				http.Error(res, "can't compress to gzip", http.StatusInternalServerError)
-				return
-			}
-
-			defer gz.Close()
-
-			res.Header().Set("Content-Encoding", "gzip")
-
-			h.ServeHTTP(gzipRespWriter{
-				ResponseWriter: res,
-				Writer:         gz,
-			}, req)
-		}
-	})
-}
-
-func (w gzipRespWriter) Write(b []byte) (int, error) {
-	return w.Writer.Write(b)
-}
-
-func (c *serverController) ReadDump() error {
-	_, err := os.Stat(c.Config.DumpPath)
-	if c.Config.Recover && err == nil {
-		mute := &sync.Mutex{}
-		mute.Lock()
-		file, err := os.OpenFile(c.Config.DumpPath, os.O_RDONLY|os.O_CREATE, 0777)
-		if err != nil {
-			return fmt.Errorf("can't open dump file - %e", err)
-		}
-		//offset, err := file.Seek(-701, 2)
-		//if err != nil {
-		//	fmt.Println(err)
-		//	return fmt.Errorf("can't seek dump file - %e", err)
-		//}
-		//fileEnd := make([]byte, 700)
-		//_, _ = file.ReadAt(fileEnd, offset)
-		//lastString := []byte(strings.Split(string(fileEnd), "\n")[1])
-		scanner := bufio.NewScanner(file)
-		strs := []string{}
-		for scanner.Scan() {
-			strs = append(strs, scanner.Text())
-		}
-		err = json.Unmarshal([]byte(strs[len(strs)-2]), c.MemStore)
-		if err != nil {
-			return fmt.Errorf("can't unmarshal dump file - %e", err)
-		}
-		err = file.Close()
-		if err != nil {
-			return fmt.Errorf("can't close dump file - %e", err)
-		}
-		c.Info().Msg(fmt.Sprintf("metrics recieved from file %s", c.Config.DumpPath))
-		mute.Unlock()
-		return nil
-	}
-	c.Info().Msg(fmt.Sprintf("nothing to recieve from file %s", c.Config.DumpPath))
-	return nil
-}
-func (c *serverController) WriteDump() error {
-	mute := &sync.Mutex{}
-	mute.Lock()
-	jsonMemStore, err := json.Marshal(c.MemStore)
-	if err != nil {
-		return fmt.Errorf("can't marshal dump data - %e", err)
-	}
-	pathSliceToFile := strings.Split(c.Config.DumpPath, "/")
-	if len(pathSliceToFile) > 1 {
-		pathSliceToFile = pathSliceToFile[1 : len(pathSliceToFile)-1]
-		err = os.MkdirAll("/"+strings.Join(pathSliceToFile, "/"), 0777)
-		if err != nil {
-			return fmt.Errorf("can't make dir(s) - %e", err)
-		}
-	}
-	file, err := os.OpenFile(c.Config.DumpPath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0777)
-	if err != nil {
-		return fmt.Errorf("can't open a file - %e", err)
-	}
-	jsonMemStore = append(jsonMemStore, []byte("\n")...)
-	_, err = file.Write(jsonMemStore)
-	if err != nil {
-		return fmt.Errorf("can't write json to a file - %e", err)
-	}
-	err = file.Close()
-	if err != nil {
-		return fmt.Errorf("can't close a file - %e", err)
-	}
-	c.Info().Msg(fmt.Sprintf("metrics dumped to file %s", c.Config.DumpPath))
-	mute.Unlock()
-	return nil
-}
-
-func (c *serverController) StartServer() {
-	if err := c.ReadDump(); err != nil {
-		c.Error().Err(err)
-	}
-	router := chi.NewRouter()
-	router.Mount("/", c.Route())
-	c.Info().Msg(fmt.Sprintf(
-		"Starting server at %s with store interval %ds, dump path %s and recover state is %v",
-		c.Config.ServerAddress,
-		c.Config.StoreInterval,
-		c.Config.DumpPath,
-		c.Config.Recover,
-	))
-	err := http.ListenAndServe(c.Config.ServerAddress, c.Route())
-	if err != nil {
-		c.Error().Err(err)
-	}
-}
-
-func (c *serverController) StartDumping() {
-	tickDump := time.NewTicker(time.Duration(c.Config.StoreInterval) * time.Second)
-	go func() {
-		for {
-			<-tickDump.C
-			if err := c.WriteDump(); err != nil {
-				c.Error().Err(err)
-			}
-		}
-	}()
-	select {}
 }

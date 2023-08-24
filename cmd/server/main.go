@@ -1,12 +1,16 @@
 package main
 
 import (
+	"fmt"
+	"net/http"
+	"os"
+	"time"
+	
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
+	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog"
-	"os"
-	"time"
 )
 
 func main() {
@@ -15,17 +19,39 @@ func main() {
 	if err != nil {
 		log.Error().Err(err)
 	}
-	controller := controllers.NewServerController(&log, conf, serverstorage.NewMemStorage())
-	//controller.StartDumping()
+	memStore := serverstorage.NewMemStorage()
+	controller := controllers.NewServerController(&log, conf, memStore)
 	tickDump := time.NewTicker(time.Duration(controller.Config.StoreInterval) * time.Second)
 	go func() {
 		for {
 			<-tickDump.C
-			if err := controller.WriteDump(); err != nil {
-				controller.Error().Err(err)
+			if err := controller.MemStore.WriteDump(
+				controller.Config.DumpPath,
+				controller.Logger,
+			); err != nil {
+				log.Error().Err(err)
 			}
 		}
 	}()
-	controller.StartServer()
+	if err := controller.MemStore.ReadDump(
+		controller.Config.DumpPath,
+		controller.Config.Recover,
+		controller.Logger,
+	); err != nil {
+		log.Error().Err(err)
+	}
+	router := chi.NewRouter()
+	router.Mount("/", controller.Route())
+	log.Info().Msg(fmt.Sprintf(
+		"Starting server at %s with store interval %ds, dump path %s and recover state is %v",
+		controller.Config.ServerAddress,
+		controller.Config.StoreInterval,
+		controller.Config.DumpPath,
+		controller.Config.Recover,
+	))
+	err = http.ListenAndServe(controller.Config.ServerAddress, controller.Route())
+	if err != nil {
+		log.Error().Err(err)
+	}
 	select {}
 }
