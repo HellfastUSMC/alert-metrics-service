@@ -58,19 +58,17 @@ type UpdateParse struct {
 func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue interface{}) error {
 	if strings.ToUpper(metricType) == GaugeStr {
 		m.PollCount += 1
-		if _, ok := m.Counter[metricName]; !ok {
-			if fmt.Sprintf("%T", metricValue) == "string" {
-				flt, err := strconv.ParseFloat(metricValue.(string), 64)
-				if err != nil {
-					return fmt.Errorf("can't convert to float64 %e", err)
-				}
-				m.Gauge[metricName] = Gauge(flt)
-				return nil
+		if fmt.Sprintf("%T", metricValue) == "string" {
+			flt, err := strconv.ParseFloat(metricValue.(string), 64)
+			if err != nil {
+				return fmt.Errorf("can't convert to float64 %e", err)
 			}
-			m.Gauge[metricName] = Gauge(reflect.ValueOf(metricValue).Elem().Float())
+			m.Gauge[metricName] = Gauge(flt)
 			return nil
 		}
+		m.Gauge[metricName] = Gauge(reflect.ValueOf(metricValue).Elem().Float())
 		return nil
+
 	}
 	if strings.ToUpper(metricType) == CounterStr {
 		m.PollCount += 1
