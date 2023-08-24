@@ -143,8 +143,9 @@ func TestNewMemStorage(t *testing.T) {
 		{
 			name: "normal behaviour",
 			want: &MemStorage{
-				Gauge:   map[string]Gauge{},
-				Counter: map[string]Counter{},
+				Gauge:     map[string]Gauge{},
+				Counter:   map[string]Counter{},
+				IOHandler: NewDump(),
 			},
 		},
 	}
