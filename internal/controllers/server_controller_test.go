@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"fmt"
-	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/rs/zerolog"
 	"io"
 	"net/http"
@@ -10,6 +9,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +27,7 @@ func TestGetMetrics(t *testing.T) {
 
 	log := zerolog.New(os.Stdout)
 	conf, _ := config.NewConfig()
-	mStore := serverstorage.NewMemStorage()
+	mStore := serverstorage.NewMemStorage(serverstorage.NewDump())
 
 	tests := []struct {
 		name string
@@ -145,7 +145,8 @@ func TestGetAllStats(t *testing.T) {
 
 	log := zerolog.New(os.Stdout)
 	conf, _ := config.NewConfig()
-	mStore := serverstorage.NewMemStorage()
+	dump := serverstorage.NewDump()
+	mStore := serverstorage.NewMemStorage(dump)
 
 	tests := []struct {
 		name string
@@ -231,7 +232,7 @@ func TestReturnMetric(t *testing.T) {
 
 	log := zerolog.New(os.Stdout)
 	conf, _ := config.NewConfig()
-	mStore := serverstorage.NewMemStorage()
+	mStore := serverstorage.NewMemStorage(serverstorage.NewDump())
 
 	tests := []struct {
 		name string

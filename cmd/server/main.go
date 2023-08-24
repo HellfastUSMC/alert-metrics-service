@@ -25,7 +25,7 @@ func main() {
 	go func() {
 		for {
 			<-tickDump.C
-			if err := controller.MemStore(
+			if err := controller.MemStore.WriteDump(
 				controller.Config.DumpPath,
 				controller.Logger,
 				memStore,

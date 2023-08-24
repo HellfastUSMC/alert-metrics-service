@@ -20,7 +20,7 @@ type MemStorage struct {
 	Gauge     map[string]Gauge
 	Counter   map[string]Counter
 	PollCount Counter
-	Dump      IOHandler
+	IOHandler
 }
 
 type Dump struct {
@@ -46,8 +46,7 @@ type MemStorekeeper interface {
 	SetMetric(metricType string, metricName string, metricValue interface{}) error
 	GetValueByName(metricType string, metricName string) (string, error)
 	GetAllData() string
-	//WriteDump(dumpPath string, log CLogger, storage *MemStorage) error
-	//ReadDump(dumpPath string, recover bool, log CLogger, storage *MemStorage) error
+	IOHandler
 }
 
 type UpdateParse struct {
@@ -135,7 +134,7 @@ func NewMemStorage(dump *Dump) *MemStorage {
 		Gauge:     map[string]Gauge{},
 		Counter:   map[string]Counter{},
 		PollCount: 0,
-		Dump:      dump,
+		IOHandler: dump,
 	}
 }
 

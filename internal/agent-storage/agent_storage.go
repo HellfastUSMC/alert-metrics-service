@@ -5,12 +5,13 @@ import (
 	"compress/flate"
 	"encoding/json"
 	"fmt"
-	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
 	"math/rand"
 	"net/http"
 	"reflect"
 	"runtime"
 	"strings"
+
+	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
 )
 
 type Gauge float64
