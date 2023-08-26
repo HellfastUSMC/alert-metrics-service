@@ -143,15 +143,14 @@ func TestNewMemStorage(t *testing.T) {
 		{
 			name: "normal behaviour",
 			want: &MemStorage{
-				Gauge:     map[string]Gauge{},
-				Counter:   map[string]Counter{},
-				IOHandler: NewDump(),
+				Gauge:   map[string]Gauge{},
+				Counter: map[string]Counter{},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, NewMemStorage(NewDump()), "NewMemStorage()")
+			assert.Equalf(t, tt.want, NewMemStorage(), "NewMemStorage()")
 		})
 	}
 }

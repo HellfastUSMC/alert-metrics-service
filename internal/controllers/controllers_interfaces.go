@@ -1,6 +1,8 @@
 package controllers
 
-import "github.com/rs/zerolog"
+import (
+	"github.com/rs/zerolog"
+)
 
 type CLogger interface {
 	Info() *zerolog.Event
