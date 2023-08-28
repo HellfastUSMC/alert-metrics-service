@@ -17,43 +17,32 @@ type FileDump struct {
 	Path    string
 	Recover bool
 	Logger  controllers.CLogger
-	Storage *serverstorage.MemStorage
+	//Storage *serverstorage.MemStorage
 }
 
-func (fd FileDump) ReadDump() error {
+func (fd FileDump) ReadDump() ([]string, error) {
 	_, err := os.Stat(fd.Path)
 	if fd.Recover && err == nil {
-		mute := &sync.Mutex{}
-		mute.Lock()
 		file, err := os.OpenFile(fd.Path, os.O_RDONLY|os.O_CREATE, 0777)
 		if err != nil {
-			return fmt.Errorf("can't open dump file - %e", err)
+			return nil, fmt.Errorf("can't open dump file - %e", err)
 		}
 		scanner := bufio.NewScanner(file)
 		strs := []string{}
 		for scanner.Scan() {
 			strs = append(strs, scanner.Text())
 		}
-		err = json.Unmarshal([]byte(strs[len(strs)-2]), fd.Storage)
-		if err != nil {
-			return fmt.Errorf("can't unmarshal dump file - %e", err)
-		}
 		err = file.Close()
-		if err != nil {
-			return fmt.Errorf("can't close dump file - %e", err)
-		}
-		log.Info().Msg(fmt.Sprintf("metrics recieved from file %s", fd.Path))
-		mute.Unlock()
-		return nil
+		return strs, nil
 	}
 	log.Info().Msg(fmt.Sprintf("nothing to recieve from file %s", fd.Path))
-	return nil
+	return nil, nil
 }
 
-func (fd FileDump) WriteDump() error {
+func (fd FileDump) WriteDump(memStore *serverstorage.MemStorage) error {
 	mute := &sync.Mutex{}
 	mute.Lock()
-	jsonMemStore, err := json.Marshal(fd.Storage)
+	jsonMemStore, err := json.Marshal(memStore)
 	if err != nil {
 		return fmt.Errorf("can't marshal dump data - %e", err)
 	}
@@ -83,11 +72,14 @@ func (fd FileDump) WriteDump() error {
 	return nil
 }
 
-func NewFileDump(filePath string, recover bool, logger controllers.CLogger, storage *serverstorage.MemStorage) *FileDump {
+func (fd *FileDump) GetPath() string {
+	return fd.Path
+}
+
+func NewFileDump(filePath string, recover bool, logger controllers.CLogger) *FileDump {
 	return &FileDump{
 		Path:    filePath,
 		Recover: recover,
 		Logger:  logger,
-		Storage: storage,
 	}
 }

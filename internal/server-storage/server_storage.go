@@ -1,10 +1,13 @@
 package serverstorage
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/rs/zerolog"
 )
@@ -14,7 +17,8 @@ type Counter int64
 
 type Dumper interface {
 	WriteDump() error
-	ReadDump() error
+	ReadDump() ([]string, error)
+	GetPath() string
 }
 
 type MemStorage struct {
@@ -45,6 +49,25 @@ type UpdateParse struct {
 	MetricType string
 	MetricName string
 	MetricVal  string
+}
+
+func (m *MemStorage) ReadFileDump() error {
+	strs, err := m.Dumper.ReadDump()
+	if err != nil {
+		return err
+	}
+	mute := &sync.Mutex{}
+	mute.Lock()
+	err = json.Unmarshal([]byte(strs[len(strs)-2]), m)
+	if err != nil {
+		return fmt.Errorf("can't unmarshal dump file - %e", err)
+	}
+	if err != nil {
+		return fmt.Errorf("can't close dump file - %e", err)
+	}
+	log.Info().Msg(fmt.Sprintf("metrics recieved from file %s", m.Dumper.GetPath()))
+	mute.Unlock()
+	return nil
 }
 
 func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue interface{}) error {
