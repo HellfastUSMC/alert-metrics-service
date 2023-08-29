@@ -28,6 +28,9 @@ func (fd FileDump) ReadDump() ([]string, error) {
 			strs = append(strs, scanner.Text())
 		}
 		err = file.Close()
+		if err != nil {
+			return nil, err
+		}
 		return strs, nil
 	}
 	log.Info().Msg(fmt.Sprintf("nothing to recieve from file %s", fd.path))

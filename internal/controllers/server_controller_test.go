@@ -27,7 +27,7 @@ func TestGetMetrics(t *testing.T) {
 
 	log := zerolog.New(os.Stdout)
 	conf, _ := config.NewConfig()
-	mStore := serverstorage.NewMemStorage()
+	mStore := serverstorage.NewMemStorage(nil, &log)
 
 	tests := []struct {
 		name string
@@ -145,7 +145,7 @@ func TestGetAllStats(t *testing.T) {
 
 	log := zerolog.New(os.Stdout)
 	conf, _ := config.NewConfig()
-	mStore := serverstorage.NewMemStorage()
+	mStore := serverstorage.NewMemStorage(nil, &log)
 
 	tests := []struct {
 		name string
@@ -231,7 +231,7 @@ func TestReturnMetric(t *testing.T) {
 
 	log := zerolog.New(os.Stdout)
 	conf, _ := config.NewConfig()
-	mStore := serverstorage.NewMemStorage()
+	mStore := serverstorage.NewMemStorage(nil, &log)
 
 	tests := []struct {
 		name string

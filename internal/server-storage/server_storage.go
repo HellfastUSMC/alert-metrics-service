@@ -62,9 +62,6 @@ func (m *MemStorage) ReadFileDump() error {
 	if err != nil {
 		return fmt.Errorf("can't unmarshal dump file - %e", err)
 	}
-	if err != nil {
-		return fmt.Errorf("can't close dump file - %e", err)
-	}
 	m.Logger.Info().Msg(fmt.Sprintf("metrics recieved from file %s", m.Dumper.GetPath()))
 	mute.Unlock()
 	return nil
