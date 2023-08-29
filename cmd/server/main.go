@@ -20,19 +20,19 @@ func main() {
 	if err != nil {
 		log.Error().Err(err)
 	}
-	memStore := serverstorage.NewMemStorage()
-	memStore.Dumper = connectors.NewFileDump(conf.DumpPath, conf.Recover, &log, memStore)
+	dumper := connectors.NewFileDump(conf.DumpPath, conf.Recover, &log)
+	memStore := serverstorage.NewMemStorage(dumper, &log)
 	controller := controllers.NewServerController(&log, conf, memStore)
 	tickDump := time.NewTicker(time.Duration(conf.StoreInterval) * time.Second)
 	go func() {
 		for {
 			<-tickDump.C
-			if err := memStore.Dumper.WriteDump(); err != nil {
+			if err := memStore.WriteFileDump(); err != nil {
 				log.Error().Err(err)
 			}
 		}
 	}()
-	if err := memStore.Dumper.ReadDump(); err != nil {
+	if err := memStore.ReadFileDump(); err != nil {
 		log.Error().Err(err)
 	}
 	router := chi.NewRouter()

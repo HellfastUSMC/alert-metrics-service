@@ -2,28 +2,23 @@ package connectors
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
+	"github.com/rs/zerolog/log"
 	"os"
 	"strings"
-	"sync"
-
-	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
-	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
-	"github.com/rs/zerolog/log"
 )
 
 type FileDump struct {
-	Path    string
-	Recover bool
-	Logger  controllers.CLogger
-	//Storage *serverstorage.MemStorage
+	path    string
+	recover bool
+	logger  controllers.CLogger
 }
 
 func (fd FileDump) ReadDump() ([]string, error) {
-	_, err := os.Stat(fd.Path)
-	if fd.Recover && err == nil {
-		file, err := os.OpenFile(fd.Path, os.O_RDONLY|os.O_CREATE, 0777)
+	_, err := os.Stat(fd.path)
+	if fd.recover && err == nil {
+		file, err := os.OpenFile(fd.path, os.O_RDONLY|os.O_CREATE, 0777)
 		if err != nil {
 			return nil, fmt.Errorf("can't open dump file - %e", err)
 		}
@@ -35,26 +30,20 @@ func (fd FileDump) ReadDump() ([]string, error) {
 		err = file.Close()
 		return strs, nil
 	}
-	log.Info().Msg(fmt.Sprintf("nothing to recieve from file %s", fd.Path))
-	return nil, nil
+	log.Info().Msg(fmt.Sprintf("nothing to recieve from file %s", fd.path))
+	return nil, err
 }
 
-func (fd FileDump) WriteDump(memStore *serverstorage.MemStorage) error {
-	mute := &sync.Mutex{}
-	mute.Lock()
-	jsonMemStore, err := json.Marshal(memStore)
-	if err != nil {
-		return fmt.Errorf("can't marshal dump data - %e", err)
-	}
-	pathSliceToFile := strings.Split(fd.Path, "/")
+func (fd FileDump) WriteDump(jsonMemStore []byte) error {
+	pathSliceToFile := strings.Split(fd.path, "/")
 	if len(pathSliceToFile) > 1 {
 		pathSliceToFile = pathSliceToFile[1 : len(pathSliceToFile)-1]
-		err = os.MkdirAll("/"+strings.Join(pathSliceToFile, "/"), 0777)
+		err := os.MkdirAll("/"+strings.Join(pathSliceToFile, "/"), 0777)
 		if err != nil {
 			return fmt.Errorf("can't make dir(s) - %e", err)
 		}
 	}
-	file, err := os.OpenFile(fd.Path, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0777)
+	file, err := os.OpenFile(fd.path, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0777)
 	if err != nil {
 		return fmt.Errorf("can't open a file - %e", err)
 	}
@@ -67,19 +56,18 @@ func (fd FileDump) WriteDump(memStore *serverstorage.MemStorage) error {
 	if err != nil {
 		return fmt.Errorf("can't close a file - %e", err)
 	}
-	log.Info().Msg(fmt.Sprintf("metrics dumped to file %s", fd.Path))
-	mute.Unlock()
+	log.Info().Msg(fmt.Sprintf("metrics dumped to file %s", fd.path))
 	return nil
 }
 
-func (fd *FileDump) GetPath() string {
-	return fd.Path
+func (fd FileDump) GetPath() string {
+	return fd.path
 }
 
 func NewFileDump(filePath string, recover bool, logger controllers.CLogger) *FileDump {
 	return &FileDump{
-		Path:    filePath,
-		Recover: recover,
-		Logger:  logger,
+		path:    filePath,
+		recover: recover,
+		logger:  logger,
 	}
 }

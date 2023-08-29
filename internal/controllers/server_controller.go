@@ -13,7 +13,6 @@ import (
 	"github.com/HellfastUSMC/alert-metrics-service/internal/middlewares"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
 	"github.com/go-chi/chi/v5"
-	"github.com/rs/zerolog"
 )
 
 type serverController struct {
@@ -40,14 +39,14 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 	}
 	val, err := c.MemStore.GetValueByName(updateMetric.MType, updateMetric.ID)
 	if err != nil {
-		c.Error().Err(err).Msg("error of GetValueByName ")
+		c.Logger.Error().Err(err).Msg("error of GetValueByName ")
 		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusNotFound)
 		return
 	}
 	if strings.ToUpper(updateMetric.MType) == GaugeStr {
 		flVal, err := strconv.ParseFloat(val, 64)
 		if err != nil {
-			c.Error().Err(err)
+			c.Logger.Error().Err(err)
 			http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
 			return
 		}
@@ -55,7 +54,7 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 	} else if strings.ToUpper(updateMetric.MType) == CounterStr {
 		intVal, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			c.Error().Err(err)
+			c.Logger.Error().Err(err)
 			http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
 			return
 		}
@@ -70,7 +69,7 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
 	res.WriteHeader(http.StatusOK)
 	if _, err = res.Write(jsonData); err != nil {
-		c.Error().Err(err)
+		c.Logger.Error().Err(err)
 		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
 		return
 	}
@@ -138,7 +137,7 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
 	res.WriteHeader(http.StatusOK)
 	if _, err = res.Write(jsonData); err != nil {
-		c.Error().Err(err)
+		c.Logger.Error().Err(err)
 		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
 		return
 	}
@@ -156,14 +155,14 @@ func (c *serverController) returnMetric(res http.ResponseWriter, req *http.Reque
 	}
 	val, err := c.MemStore.GetValueByName(updateURL.MetricType, updateURL.MetricName)
 	if err != nil {
-		c.Error().Err(err).Msg("error of GetValueByName ")
+		c.Logger.Error().Err(err).Msg("error of GetValueByName ")
 		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusNotFound)
 	}
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
 	res.WriteHeader(http.StatusOK)
 	if _, err = res.Write([]byte(val)); err != nil {
-		c.Error().Err(err)
+		c.Logger.Error().Err(err)
 	}
 }
 
@@ -205,18 +204,6 @@ func (c *serverController) getMetrics(res http.ResponseWriter, req *http.Request
 	res.WriteHeader(http.StatusOK)
 }
 
-func (c *serverController) Info() *zerolog.Event {
-	return c.Logger.Info()
-}
-
-func (c *serverController) Warn() *zerolog.Event {
-	return c.Logger.Warn()
-}
-
-func (c *serverController) Error() *zerolog.Event {
-	return c.Logger.Error()
-}
-
 func NewServerController(logger CLogger, conf *config.SysConfig, mStore *serverstorage.MemStorage) *serverController {
 	return &serverController{
 		Logger:   logger,
@@ -229,7 +216,7 @@ func (c *serverController) getAllStats(res http.ResponseWriter, _ *http.Request)
 	allStats := c.MemStore.GetAllData()
 	res.Header().Add("Content-Type", "text/html")
 	if _, err := res.Write([]byte(allStats)); err != nil {
-		c.Error().Err(err)
+		c.Logger.Error().Err(err)
 	}
 }
 

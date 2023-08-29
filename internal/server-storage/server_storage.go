@@ -3,7 +3,6 @@ package serverstorage
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -16,7 +15,7 @@ type Gauge float64
 type Counter int64
 
 type Dumper interface {
-	WriteDump() error
+	WriteDump([]byte) error
 	ReadDump() ([]string, error)
 	GetPath() string
 }
@@ -25,7 +24,8 @@ type MemStorage struct {
 	Gauge     map[string]Gauge
 	Counter   map[string]Counter
 	PollCount Counter
-	Dumper    Dumper `json:"-"`
+	Dumper    Dumper  `json:"-"`
+	Logger    CLogger `json:"-"`
 }
 
 type CLogger interface {
@@ -65,8 +65,23 @@ func (m *MemStorage) ReadFileDump() error {
 	if err != nil {
 		return fmt.Errorf("can't close dump file - %e", err)
 	}
-	log.Info().Msg(fmt.Sprintf("metrics recieved from file %s", m.Dumper.GetPath()))
+	m.Logger.Info().Msg(fmt.Sprintf("metrics recieved from file %s", m.Dumper.GetPath()))
 	mute.Unlock()
+	return nil
+}
+
+func (m *MemStorage) WriteFileDump() error {
+	mute := &sync.Mutex{}
+	mute.Lock()
+	jsonMemStore, err := json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("can't marshal dump data - %e", err)
+	}
+	mute.Unlock()
+	err = m.Dumper.WriteDump(jsonMemStore)
+	if err != nil {
+		return fmt.Errorf("can't write dump data to file - %e", err)
+	}
 	return nil
 }
 
@@ -141,10 +156,12 @@ func (m *MemStorage) GetAllData() string {
 	return strings.Join(allStats, "\n")
 }
 
-func NewMemStorage() *MemStorage {
+func NewMemStorage(dumper Dumper, logger CLogger) *MemStorage {
 	return &MemStorage{
 		Gauge:     map[string]Gauge{},
 		Counter:   map[string]Counter{},
 		PollCount: 0,
+		Dumper:    dumper,
+		Logger:    logger,
 	}
 }
