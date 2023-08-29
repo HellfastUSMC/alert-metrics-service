@@ -1,10 +1,8 @@
 package serverstorage
 
 import (
-	"os"
 	"testing"
 
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -147,13 +145,14 @@ func TestNewMemStorage(t *testing.T) {
 			want: &MemStorage{
 				Gauge:   map[string]Gauge{},
 				Counter: map[string]Counter{},
+				Logger:  nil,
+				Dumper:  nil,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := zerolog.New(os.Stdout).Level(zerolog.TraceLevel).With().Timestamp().Logger()
-			assert.Equalf(t, tt.want, NewMemStorage(nil, &logger), "NewMemStorage()")
+			assert.Equalf(t, tt.want, NewMemStorage(nil, nil), "NewMemStorage()")
 		})
 	}
 }
