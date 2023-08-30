@@ -27,12 +27,12 @@ func main() {
 	go func() {
 		for {
 			<-tickDump.C
-			if err := memStore.WriteFileDump(); err != nil {
+			if err := memStore.WriteDump(); err != nil {
 				log.Error().Err(err)
 			}
 		}
 	}()
-	if err := memStore.ReadFileDump(); err != nil {
+	if err := memStore.ReadDump(); err != nil {
 		log.Error().Err(err)
 	}
 	router := chi.NewRouter()

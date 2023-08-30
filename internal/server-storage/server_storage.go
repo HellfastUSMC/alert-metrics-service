@@ -24,8 +24,9 @@ type MemStorage struct {
 	Gauge     map[string]Gauge
 	Counter   map[string]Counter
 	PollCount Counter
-	Dumper    Dumper  `json:"-"`
-	Logger    CLogger `json:"-"`
+	Dumper    Dumper      `json:"-"`
+	Logger    CLogger     `json:"-"`
+	Mutex     *sync.Mutex `json:"-"`
 }
 
 type CLogger interface {
@@ -51,31 +52,29 @@ type UpdateParse struct {
 	MetricVal  string
 }
 
-func (m *MemStorage) ReadFileDump() error {
+func (m *MemStorage) ReadDump() error {
+	m.Mutex.Lock()
 	strs, err := m.Dumper.ReadDump()
 	if err != nil {
 		return err
 	}
-	mute := &sync.Mutex{}
-	mute.Lock()
 	err = json.Unmarshal([]byte(strs[len(strs)-2]), m)
+	m.Mutex.Unlock()
 	if err != nil {
 		return fmt.Errorf("can't unmarshal dump file - %e", err)
 	}
 	m.Logger.Info().Msg(fmt.Sprintf("metrics recieved from file %s", m.Dumper.GetPath()))
-	mute.Unlock()
 	return nil
 }
 
-func (m *MemStorage) WriteFileDump() error {
-	mute := &sync.Mutex{}
-	mute.Lock()
+func (m *MemStorage) WriteDump() error {
 	jsonMemStore, err := json.Marshal(m)
 	if err != nil {
 		return fmt.Errorf("can't marshal dump data - %e", err)
 	}
-	mute.Unlock()
+	m.Mutex.Lock()
 	err = m.Dumper.WriteDump(jsonMemStore)
+	m.Mutex.Unlock()
 	if err != nil {
 		return fmt.Errorf("can't write dump data to file - %e", err)
 	}
@@ -160,5 +159,6 @@ func NewMemStorage(dumper Dumper, logger CLogger) *MemStorage {
 		PollCount: 0,
 		Dumper:    dumper,
 		Logger:    logger,
+		Mutex:     &sync.Mutex{},
 	}
 }
