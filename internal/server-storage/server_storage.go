@@ -53,11 +53,11 @@ type UpdateParse struct {
 }
 
 func (m *MemStorage) ReadDump() error {
-	m.Mutex.Lock()
 	strs, err := m.Dumper.ReadDump()
 	if err != nil {
 		return err
 	}
+	m.Mutex.Lock()
 	err = json.Unmarshal([]byte(strs[len(strs)-2]), m)
 	m.Mutex.Unlock()
 	if err != nil {
@@ -68,13 +68,13 @@ func (m *MemStorage) ReadDump() error {
 }
 
 func (m *MemStorage) WriteDump() error {
+	m.Mutex.Lock()
 	jsonMemStore, err := json.Marshal(m)
+	m.Mutex.Unlock()
 	if err != nil {
 		return fmt.Errorf("can't marshal dump data - %e", err)
 	}
-	m.Mutex.Lock()
 	err = m.Dumper.WriteDump(jsonMemStore)
-	m.Mutex.Unlock()
 	if err != nil {
 		return fmt.Errorf("can't write dump data to file - %e", err)
 	}
