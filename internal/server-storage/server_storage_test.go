@@ -1,6 +1,7 @@
 package serverstorage
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -147,6 +148,7 @@ func TestNewMemStorage(t *testing.T) {
 				Counter: map[string]Counter{},
 				Logger:  nil,
 				Dumper:  nil,
+				Mutex:   &sync.Mutex{},
 			},
 		},
 	}
