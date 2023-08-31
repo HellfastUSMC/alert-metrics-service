@@ -2,15 +2,16 @@ package controllers
 
 import (
 	"fmt"
-	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
+	"github.com/rs/zerolog"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
+	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
 	"github.com/go-chi/chi/v5"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,9 +25,9 @@ func TestGetMetrics(t *testing.T) {
 		code int
 	}
 
-	log := logrus.New()
+	log := zerolog.New(os.Stdout)
 	conf, _ := config.NewConfig()
-	mStore := serverstorage.NewMemStorage()
+	mStore := serverstorage.NewMemStorage(nil, &log)
 
 	tests := []struct {
 		name string
@@ -38,7 +39,7 @@ func TestGetMetrics(t *testing.T) {
 			args: args{
 				url:       "/update/gauge/Alloc/777.5",
 				reqMethod: http.MethodPost,
-				ctrl:      NewServerController(log, conf, mStore),
+				ctrl:      NewServerController(&log, conf, mStore),
 			},
 			want: want{
 				code: 200,
@@ -49,7 +50,7 @@ func TestGetMetrics(t *testing.T) {
 			args: args{
 				url:       "/update/ga1uge/Alloc/777.5",
 				reqMethod: http.MethodPost,
-				ctrl:      NewServerController(log, conf, mStore),
+				ctrl:      NewServerController(&log, conf, mStore),
 			},
 			want: want{
 				code: 400,
@@ -60,7 +61,7 @@ func TestGetMetrics(t *testing.T) {
 			args: args{
 				url:       "/update/gauge/777.5",
 				reqMethod: http.MethodPost,
-				ctrl:      NewServerController(log, conf, mStore),
+				ctrl:      NewServerController(&log, conf, mStore),
 			},
 			want: want{
 				code: 404,
@@ -71,7 +72,7 @@ func TestGetMetrics(t *testing.T) {
 			args: args{
 				url:       "/update/gauge/Alloc/agb",
 				reqMethod: http.MethodPost,
-				ctrl:      NewServerController(log, conf, mStore),
+				ctrl:      NewServerController(&log, conf, mStore),
 			},
 			want: want{
 				code: 400,
@@ -82,7 +83,7 @@ func TestGetMetrics(t *testing.T) {
 			args: args{
 				url:       "/update/gauge/Alloc/",
 				reqMethod: http.MethodPost,
-				ctrl:      NewServerController(log, conf, mStore),
+				ctrl:      NewServerController(&log, conf, mStore),
 			},
 			want: want{
 				code: 404,
@@ -93,7 +94,7 @@ func TestGetMetrics(t *testing.T) {
 			args: args{
 				url:       "/update/gauge/Alloc/777.5",
 				reqMethod: http.MethodGet,
-				ctrl:      NewServerController(log, conf, mStore),
+				ctrl:      NewServerController(&log, conf, mStore),
 			},
 			want: want{
 				code: 405,
@@ -142,9 +143,9 @@ func TestGetAllStats(t *testing.T) {
 		code int
 	}
 
-	log := logrus.New()
+	log := zerolog.New(os.Stdout)
 	conf, _ := config.NewConfig()
-	mStore := serverstorage.NewMemStorage()
+	mStore := serverstorage.NewMemStorage(nil, &log)
 
 	tests := []struct {
 		name string
@@ -156,7 +157,7 @@ func TestGetAllStats(t *testing.T) {
 			args: args{
 				url:       "/",
 				reqMethod: http.MethodGet,
-				ctrl:      NewServerController(log, conf, mStore),
+				ctrl:      NewServerController(&log, conf, mStore),
 			},
 			want: want{
 				code: http.StatusOK,
@@ -167,7 +168,7 @@ func TestGetAllStats(t *testing.T) {
 			args: args{
 				url:       "/444",
 				reqMethod: http.MethodGet,
-				ctrl:      NewServerController(log, conf, mStore),
+				ctrl:      NewServerController(&log, conf, mStore),
 			},
 			want: want{
 				code: http.StatusNotFound,
@@ -178,7 +179,7 @@ func TestGetAllStats(t *testing.T) {
 			args: args{
 				url:       "/",
 				reqMethod: http.MethodPost,
-				ctrl:      NewServerController(log, conf, mStore),
+				ctrl:      NewServerController(&log, conf, mStore),
 			},
 			want: want{
 				code: http.StatusMethodNotAllowed,
@@ -228,9 +229,9 @@ func TestReturnMetric(t *testing.T) {
 		wantBody bool
 	}
 
-	log := logrus.New()
+	log := zerolog.New(os.Stdout)
 	conf, _ := config.NewConfig()
-	mStore := serverstorage.NewMemStorage()
+	mStore := serverstorage.NewMemStorage(nil, &log)
 
 	tests := []struct {
 		name string
@@ -244,7 +245,7 @@ func TestReturnMetric(t *testing.T) {
 				reqMethod:   http.MethodGet,
 				metricName:  "testMetric",
 				metricValue: 100,
-				ctrl:        NewServerController(log, conf, mStore),
+				ctrl:        NewServerController(&log, conf, mStore),
 			},
 			want: want{
 				code:     http.StatusOK,
@@ -259,7 +260,7 @@ func TestReturnMetric(t *testing.T) {
 				reqMethod:   http.MethodGet,
 				metricName:  "testMetric",
 				metricValue: 100,
-				ctrl:        NewServerController(log, conf, mStore),
+				ctrl:        NewServerController(&log, conf, mStore),
 			},
 			want: want{
 				code:     http.StatusNotFound,
