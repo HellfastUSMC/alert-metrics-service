@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/rs/zerolog"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 )
 
 type respData struct {
@@ -17,13 +17,7 @@ type logRespWriter struct {
 	http.ResponseWriter
 }
 
-type CLogger interface {
-	Info() *zerolog.Event
-	Warn() *zerolog.Event
-	Error() *zerolog.Event
-}
-
-func ReqResLogging(log CLogger) func(h http.Handler) http.Handler {
+func ReqResLogging(log logger.CLogger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(res http.ResponseWriter, r *http.Request) {
 			start := time.Now()

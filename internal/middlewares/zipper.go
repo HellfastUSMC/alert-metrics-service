@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 )
 
 type gzipRespWriter struct {
@@ -14,7 +16,7 @@ type gzipRespWriter struct {
 	Writer io.Writer
 }
 
-func Gzip(log CLogger) func(h http.Handler) http.Handler {
+func Gzip(log logger.CLogger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 			if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {

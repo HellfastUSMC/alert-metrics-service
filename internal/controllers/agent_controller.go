@@ -2,15 +2,16 @@ package controllers
 
 import (
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 )
 
 type agentController struct {
-	Logger  CLogger
+	Logger  logger.CLogger
 	Config  *config.SysConfig
 	Storage agentHandler
 }
 
-func NewAgentController(logger CLogger, conf *config.SysConfig, agentHndl agentHandler) *agentController {
+func NewAgentController(logger logger.CLogger, conf *config.SysConfig, agentHndl agentHandler) *agentController {
 	return &agentController{
 		Logger:  logger,
 		Config:  conf,

@@ -131,7 +131,6 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 			http.MethodPost,
 			fmt.Sprintf("%s/update/", hostAndPort),
 			&buff,
-			//bytes.NewReader(buff.Bytes()),
 		)
 		if err != nil {
 			return fmt.Errorf("there's an error in creating send metric request: type - %s, name - %s, value - %v, error - %e",
@@ -150,9 +149,6 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 		if err != nil {
 			return fmt.Errorf("there's an error in sending request: %e", err)
 		}
-
-		//resBody, _ := io.ReadAll(res.Body)
-		//fmt.Println("resp body - " + string(resBody))
 
 		err = res.Body.Close()
 		if err != nil {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/rs/zerolog"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 )
 
 type Gauge float64
@@ -24,15 +24,9 @@ type MemStorage struct {
 	Gauge     map[string]Gauge
 	Counter   map[string]Counter
 	PollCount Counter
-	Dumper    Dumper      `json:"-"`
-	Logger    CLogger     `json:"-"`
-	Mutex     *sync.Mutex `json:"-"`
-}
-
-type CLogger interface {
-	Info() *zerolog.Event
-	Warn() *zerolog.Event
-	Error() *zerolog.Event
+	Dumper    Dumper         `json:"-"`
+	Logger    logger.CLogger `json:"-"`
+	Mutex     *sync.Mutex    `json:"-"`
 }
 
 const (
@@ -152,7 +146,7 @@ func (m *MemStorage) GetAllData() string {
 	return strings.Join(allStats, "\n")
 }
 
-func NewMemStorage(dumper Dumper, logger CLogger) *MemStorage {
+func NewMemStorage(dumper Dumper, logger logger.CLogger) *MemStorage {
 	return &MemStorage{
 		Gauge:     map[string]Gauge{},
 		Counter:   map[string]Counter{},

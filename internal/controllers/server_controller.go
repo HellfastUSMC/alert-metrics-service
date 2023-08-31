@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/middlewares"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
 	"github.com/go-chi/chi/v5"
 )
 
 type serverController struct {
-	Logger   CLogger
+	Logger   logger.CLogger
 	Config   *config.SysConfig
 	MemStore serverstorage.MemStorekeeper
 }
@@ -204,7 +205,7 @@ func (c *serverController) getMetrics(res http.ResponseWriter, req *http.Request
 	res.WriteHeader(http.StatusOK)
 }
 
-func NewServerController(logger CLogger, conf *config.SysConfig, mStore *serverstorage.MemStorage) *serverController {
+func NewServerController(logger logger.CLogger, conf *config.SysConfig, mStore *serverstorage.MemStorage) *serverController {
 	return &serverController{
 		Logger:   logger,
 		Config:   conf,

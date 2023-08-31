@@ -3,16 +3,17 @@ package connectors
 import (
 	"bufio"
 	"fmt"
-	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
-	"github.com/rs/zerolog/log"
 	"os"
 	"strings"
+
+	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
+	"github.com/rs/zerolog/log"
 )
 
 type FileDump struct {
 	path    string
 	recover bool
-	logger  controllers.CLogger
+	logger  logger.CLogger
 }
 
 func (fd FileDump) ReadDump() ([]string, error) {
@@ -67,7 +68,7 @@ func (fd FileDump) GetPath() string {
 	return fd.path
 }
 
-func NewFileDump(filePath string, recover bool, logger controllers.CLogger) *FileDump {
+func NewFileDump(filePath string, recover bool, logger logger.CLogger) *FileDump {
 	return &FileDump{
 		path:    filePath,
 		recover: recover,
