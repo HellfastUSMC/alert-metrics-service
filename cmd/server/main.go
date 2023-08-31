@@ -23,6 +23,14 @@ func main() {
 	dumper := connectors.NewFileDump(conf.DumpPath, conf.Recover, &log)
 	memStore := serverstorage.NewMemStorage(dumper, &log)
 	controller := controllers.NewServerController(&log, conf, memStore)
+	if conf.DBPath != "" {
+		db, err := connectors.NewConnectionPGSQL(*conf)
+		if err != nil {
+			log.Error().Err(err)
+		}
+		controller.DB = db
+		defer db.Close()
+	}
 	tickDump := time.NewTicker(time.Duration(conf.StoreInterval) * time.Second)
 	go func() {
 		for {

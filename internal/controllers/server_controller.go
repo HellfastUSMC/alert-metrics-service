@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/connectors"
 	"io"
 	"net/http"
 	"strconv"
@@ -20,6 +21,7 @@ type serverController struct {
 	Logger   logger.CLogger
 	Config   *config.SysConfig
 	MemStore serverstorage.MemStorekeeper
+	DB       *connectors.PGSQLConn
 }
 
 func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.Request) {
@@ -221,12 +223,22 @@ func (c *serverController) getAllStats(res http.ResponseWriter, _ *http.Request)
 	}
 }
 
+func (c *serverController) pingDB(res http.ResponseWriter, _ *http.Request) {
+	err := c.DB.PingBase()
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+	} else {
+		res.WriteHeader(http.StatusOK)
+	}
+}
+
 func (c *serverController) Route() *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middlewares.ReqResLogging(c.Logger))
 	router.Use(middlewares.Gzip(c.Logger))
 	router.Route("/", func(router chi.Router) {
 		router.Get("/", c.getAllStats)
+		router.Get("/ping", c.pingDB)
 		router.Post("/value/", c.returnJSONMetric)
 		router.Post("/update/", c.getJSONMetrics)
 		router.Get("/value/{metricType}/{metricName}", c.returnMetric)

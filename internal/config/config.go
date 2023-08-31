@@ -14,6 +14,7 @@ type SysConfig struct {
 	StoreInterval  int64  `env:"STORE_INTERVAL"`
 	DumpPath       string `env:"FILE_STORAGE_PATH"`
 	Recover        bool   `env:"RESTORE"`
+	DBPath         string `env:"DATABASE_DSN"`
 }
 
 func (c *SysConfig) ParseServerFlags() error {
@@ -22,6 +23,12 @@ func (c *SysConfig) ParseServerFlags() error {
 	serverFlags.StringVar(&c.DumpPath, "f", "/tmp/metrics-db.json", "Path to dump file string")
 	serverFlags.Int64Var(&c.StoreInterval, "i", 300, "Storing interval in seconds int")
 	serverFlags.BoolVar(&c.Recover, "r", true, "Recover from file sign bool")
+	serverFlags.StringVar(
+		&c.DBPath,
+		"d",
+		"host=localhost port=5432 user=postgres password=postgres dbname=postgres sslmode=disable",
+		"DB connection string",
+	)
 	if err := serverFlags.Parse(os.Args[1:]); err != nil {
 		os.Exit(1)
 		return err
