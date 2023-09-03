@@ -18,7 +18,7 @@ type FileDump struct {
 
 func (fd FileDump) ReadDump() ([]string, error) {
 	_, err := os.Stat(fd.path)
-	if fd.recover && err == nil {
+	if err == nil {
 		file, err := os.OpenFile(fd.path, os.O_RDONLY|os.O_CREATE, 0777)
 		if err != nil {
 			return nil, fmt.Errorf("can't open dump file - %e", err)
