@@ -51,10 +51,10 @@ func (pg *PGSQLConn) Ping() error {
 	return nil
 }
 
-func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
-	//checking table exists, creating table if not
-	rows, err := pg.DBConn.Query("SELECT * from Metrics LIMIT 1;")
-	if err != nil {
+// CheckTable checking table exists, creating table if not
+func (pg *PGSQLConn) CheckTable() error {
+	row := pg.DBConn.QueryRow("SELECT * from Metrics")
+	if row.Err() != nil {
 		pg.Logger.Info().Msg("Table Metrics not found, creating table")
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
@@ -70,11 +70,12 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 		}
 		pg.Logger.Info().Msg("Table Metrics created")
 	}
-	if err := rows.Err(); err != nil {
-		pg.Logger.Error().Err(err)
-	}
-	if err := rows.Close(); err != nil {
-		pg.Logger.Error().Err(err)
+	return nil
+}
+
+func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
+	if err := pg.CheckTable(); err != nil {
+		return err
 	}
 	store := serverstorage.MemStorage{}
 	if err := json.Unmarshal(jsonString, &store); err != nil {
@@ -85,12 +86,12 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 	for name, val := range store.Gauge {
 		pg.Logger.Info().Msg(fmt.Sprintf("Updating %s with value %f of type Gauge", name, val))
 		res, err := pg.DBConn.ExecContext(ctx, "UPDATE Metrics SET value=$1 WHERE name=$2 and type=$3", val, name, "Gauge")
-		rows, _ := res.RowsAffected()
+		row, _ := res.RowsAffected()
 		if err != nil {
 			pg.Logger.Error().Err(err)
 		}
 
-		if rows == 0 {
+		if row == 0 {
 			pg.Logger.Info().Msg(fmt.Sprintf("There's no metric called %s in DB", name))
 			pg.Logger.Info().Msg(fmt.Sprintf("Creating %s with value %f of type Gauge", name, val))
 			_, err := pg.DBConn.ExecContext(ctx, "INSERT INTO Metrics (value,name,type,delta) VALUES ($1,$2,$3,NULL)", val, name, "Gauge")
