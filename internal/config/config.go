@@ -26,7 +26,7 @@ func (c *SysConfig) ParseServerFlags() error {
 	serverFlags.StringVar(
 		&c.DBPath,
 		"d",
-		"host=localhost port=5432 user=postgres password=postgres dbname=postgres sslmode=disable",
+		"host=localhost port=5432 user=postgres password=123 dbname=postgres sslmode=disable",
 		"DB connection string",
 	)
 	if err := serverFlags.Parse(os.Args[1:]); err != nil {
