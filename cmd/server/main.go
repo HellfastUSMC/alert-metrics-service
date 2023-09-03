@@ -47,11 +47,11 @@ func main() {
 				}
 			}
 		}()
-		//if conf.Recover && conf.DumpPath != "" {
-		//	if err := memStore.ReadDump(); err != nil {
-		//		log.Error().Err(err)
-		//	}
-		//}
+		if conf.Recover {
+			if err := memStore.ReadDump(); err != nil {
+				log.Error().Err(err)
+			}
+		}
 	}
 	router := chi.NewRouter()
 	router.Mount("/", controller.Route())

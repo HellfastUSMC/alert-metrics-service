@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
@@ -17,6 +18,11 @@ type PGSQLConn struct {
 	DBConn           *sql.DB
 	Logger           logger.CLogger
 }
+
+const (
+	GaugeStr   = "GAUGE"
+	CounterStr = "COUNTER"
+)
 
 //func (pg *PGSQLConn) Connect() error {
 //	db, err := sql.Open("pgx", pg.ConnectionString)
@@ -122,11 +128,48 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 }
 
 func (pg *PGSQLConn) ReadDump() ([]string, error) {
-	return nil, nil
+	pg.Logger.Info().Msg("Reading dump from DB")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	rows, err := pg.DBConn.QueryContext(ctx, "SELECT * FROM Metrics;")
+	if err != nil {
+		return nil, err
+	}
+	var (
+		name  string
+		mType string
+		delta sql.NullInt64
+		value sql.NullFloat64
+	)
+	res := []string{}
+	jsonGStr := `{"Gauge":{`
+	jsonCStr := `"Counter":{`
+	for rows.Next() {
+		err := rows.Scan(&name, &mType, &value, &delta)
+		if err != nil {
+			pg.Logger.Error().Err(err)
+			return nil, err
+		}
+		if strings.ToUpper(mType) == GaugeStr {
+			val, _ := value.Value()
+			jsonGStr += fmt.Sprintf(`"%s":%f,`, name, val)
+		} else if strings.ToUpper(mType) == CounterStr {
+			del, _ := delta.Value()
+			jsonCStr += fmt.Sprintf(`"%s":%d,`, name, del)
+		}
+	}
+	jsonGStr = strings.TrimSuffix(jsonGStr, ",")
+	jsonCStr = strings.TrimSuffix(jsonCStr, ",")
+	jsonGStr += "},"
+	jsonCStr += "}"
+	resString := jsonGStr + jsonCStr + "}"
+	res = append(res, resString)
+	res = append(res, "\n")
+	return res, nil
 }
 
 func (pg *PGSQLConn) GetPath() string {
-	return pg.ConnectionString
+	return "Metrics table from DB"
 }
 
 func NewConnectionPGSQL(connPath string, logger logger.CLogger) (*PGSQLConn, error) {

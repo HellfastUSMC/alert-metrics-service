@@ -59,7 +59,7 @@ func (m *MemStorage) ReadDump() error {
 	if err != nil {
 		return fmt.Errorf("can't unmarshal dump file - %e", err)
 	}
-	m.Logger.Info().Msg(fmt.Sprintf("metrics recieved from file %s", m.Dumper.GetPath()))
+	m.Logger.Info().Msg(fmt.Sprintf("Metrics recieved from %s", m.Dumper.GetPath()))
 	return nil
 }
 
