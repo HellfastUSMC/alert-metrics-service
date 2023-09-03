@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
@@ -26,14 +27,19 @@ func main() {
 		if err != nil {
 			log.Error().Err(err)
 		}
+		log.Info().Msg("Using DB dumper")
 	} else if conf.DumpPath != "" {
 		dumper = connectors.NewFileDump(conf.DumpPath, conf.Recover, &log)
+		log.Info().Msg("Using file dumper")
+	} else {
+		log.Info().Msg("Using memory dumper")
 	}
 	memStore := serverstorage.NewMemStorage(dumper, &log)
 	controller := controllers.NewServerController(&log, conf, memStore)
 	tickDump := time.NewTicker(time.Duration(conf.StoreInterval) * time.Second)
 	if dumper != nil {
 		go func() {
+			defer runtime.Goexit()
 			for {
 				<-tickDump.C
 				if err := memStore.WriteDump(); err != nil {
@@ -41,19 +47,20 @@ func main() {
 				}
 			}
 		}()
-		if conf.Recover {
-			if err := memStore.ReadDump(); err != nil {
-				log.Error().Err(err)
-			}
-		}
+		//if conf.Recover && conf.DumpPath != "" {
+		//	if err := memStore.ReadDump(); err != nil {
+		//		log.Error().Err(err)
+		//	}
+		//}
 	}
 	router := chi.NewRouter()
 	router.Mount("/", controller.Route())
 	log.Info().Msg(fmt.Sprintf(
-		"Starting server at %s with store interval %ds, dump path %s and recover state is %v",
+		"Starting server at %s with store interval %ds, dump path %s, DB path %s and recover state is %v",
 		controller.Config.ServerAddress,
 		controller.Config.StoreInterval,
 		controller.Config.DumpPath,
+		controller.Config.DBPath,
 		controller.Config.Recover,
 	))
 	err = http.ListenAndServe(controller.Config.ServerAddress, controller.Route())

@@ -68,6 +68,10 @@ func (fd FileDump) GetPath() string {
 	return fd.path
 }
 
+func (fd FileDump) Ping() error {
+	return nil
+}
+
 func NewFileDump(filePath string, recover bool, logger logger.CLogger) *FileDump {
 	return &FileDump{
 		path:    filePath,

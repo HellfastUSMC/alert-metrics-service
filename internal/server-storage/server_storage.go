@@ -18,6 +18,7 @@ type Dumper interface {
 	WriteDump([]byte) error
 	ReadDump() ([]string, error)
 	GetPath() string
+	Ping() error
 }
 
 type MemStorage struct {
@@ -38,6 +39,7 @@ type MemStorekeeper interface {
 	SetMetric(metricType string, metricName string, metricValue interface{}) error
 	GetValueByName(metricType string, metricName string) (string, error)
 	GetAllData() string
+	Ping() error
 }
 
 type UpdateParse struct {
@@ -71,6 +73,13 @@ func (m *MemStorage) WriteDump() error {
 	err = m.Dumper.WriteDump(jsonMemStore)
 	if err != nil {
 		return fmt.Errorf("can't write dump data to file - %e", err)
+	}
+	return nil
+}
+
+func (m *MemStorage) Ping() error {
+	if err := m.Dumper.Ping(); err != nil {
+		return err
 	}
 	return nil
 }

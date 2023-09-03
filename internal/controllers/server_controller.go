@@ -224,7 +224,7 @@ func (c *serverController) getAllStats(res http.ResponseWriter, _ *http.Request)
 }
 
 func (c *serverController) pingDB(res http.ResponseWriter, _ *http.Request) {
-	err := c.DB.PingBase()
+	err := c.MemStore.Ping()
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 	} else {

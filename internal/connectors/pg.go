@@ -35,8 +35,10 @@ func (pg *PGSQLConn) Close() error {
 	return nil
 }
 
-func (pg *PGSQLConn) PingBase() error {
-	err := pg.DBConn.Ping()
+func (pg *PGSQLConn) Ping() error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	err := pg.DBConn.PingContext(ctx)
 	if err != nil {
 		return err
 	}
@@ -44,6 +46,24 @@ func (pg *PGSQLConn) PingBase() error {
 }
 
 func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
+	//checking table exists, creating table if not
+	_, err := pg.DBConn.Query("SELECT * from Metrics LIMIT 1;")
+	if err != nil {
+		pg.Logger.Info().Msg("Table Metrics not found, creating table")
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+
+		_, err := pg.DBConn.ExecContext(ctx, `CREATE TABLE Metrics (
+			NAME text NOT NULL UNIQUE PRIMARY KEY,
+			TYPE text NOT NULL,
+			VALUE double precision,
+			DELTA bigint;
+        )`)
+		if err != nil {
+			return err
+		}
+		pg.Logger.Info().Msg("Table Metrics created")
+	}
 	store := serverstorage.MemStorage{}
 	if err := json.Unmarshal(jsonString, &store); err != nil {
 		return err
@@ -52,7 +72,7 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 	defer cancel()
 	for name, val := range store.Gauge {
 		pg.Logger.Info().Msg(fmt.Sprintf("Updating %s with value %f of type Gauge", name, val))
-		res, err := pg.DBConn.ExecContext(ctx, "UPDATE Metrics SET value=$1 WHERE name=$2 and type=$3", val, name, "Gauge")
+		res, err := pg.DBConn.ExecContext(ctx, "UPDATE Metrics SET value=$1 WHERE name=$2 and type=$3;", val, name, "Gauge")
 		rows, _ := res.RowsAffected()
 		if err != nil {
 			pg.Logger.Error().Err(err)
@@ -61,7 +81,7 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 		if rows == 0 {
 			pg.Logger.Info().Msg(fmt.Sprintf("There's no metric called %s in DB", name))
 			pg.Logger.Info().Msg(fmt.Sprintf("Creating %s with value %f of type Gauge", name, val))
-			_, err := pg.DBConn.ExecContext(ctx, "INSERT INTO Metrics (value, name, type, delta) VALUES ($1,$2,$3,NULL)", val, name, "Gauge")
+			_, err := pg.DBConn.ExecContext(ctx, "INSERT INTO Metrics (value,name,type,delta) VALUES ($1,$2,$3,NULL);", val, name, "Gauge")
 			if err != nil {
 				pg.Logger.Error().Err(err)
 			}
@@ -69,7 +89,12 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 	}
 	for name, delta := range store.Counter {
 		pg.Logger.Info().Msg(fmt.Sprintf("Updating %s with delta %d of type Counter", name, delta))
-		res, err := pg.DBConn.ExecContext(ctx, "UPDATE Metrics SET delta=$1 WHERE name=$2 and type=$3", delta, name, "Counter")
+		//row := pg.DBConn.QueryRow("SELECT delta FROM Metrics WHERE name=$1", name)
+		//var d int64
+		//if err := row.Scan(&d); err != nil {
+		//	pg.Logger.Error().Err(err)
+		//}
+		res, err := pg.DBConn.ExecContext(ctx, "UPDATE Metrics SET delta=$1 WHERE name=$2 and type=$3;", delta, name, "Counter")
 		rows, _ := res.RowsAffected()
 		if err != nil {
 			pg.Logger.Error().Err(err)
@@ -77,7 +102,7 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 		if rows == 0 {
 			pg.Logger.Info().Msg(fmt.Sprintf("There's no metric called %s in DB", name))
 			pg.Logger.Info().Msg(fmt.Sprintf("Creating %s with delta %d of type Counter", name, delta))
-			_, err := pg.DBConn.ExecContext(ctx, "INSERT INTO Metrics (delta, name, type, value) VALUES ($1,$2,$3,NULL)", delta, name, "Counter")
+			_, err := pg.DBConn.ExecContext(ctx, "INSERT INTO Metrics (delta, name, type, value) VALUES ($1,$2,$3,NULL);", delta, name, "Counter")
 			if err != nil {
 				pg.Logger.Error().Err(err)
 			}
@@ -102,28 +127,6 @@ func NewConnectionPGSQL(connPath string, logger logger.CLogger) (*PGSQLConn, err
 	db, err := sql.Open("pgx", connPath)
 	if err != nil {
 		return nil, err
-	}
-	//checking table exists creating table if not
-	_, err = db.Query("SELECT * from Metrics;")
-	if err != nil {
-		logger.Info().Msg("Table Metrics not found, creating table")
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		defer cancel()
-
-		res, err := db.ExecContext(ctx, `CREATE TABLE Metrics (
--- 			ID serial PRIMARY KEY NOT NULL,
-			NAME text NOT NULL UNIQUE,
-			TYPE text NOT NULL,
-			VALUE double precision,
-			DELTA bigint
-        )`)
-		fmt.Println(res)
-		logger.Info().Msg("Table Metrics created")
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		logger.Info().Msg("Table Metrics already exists")
 	}
 	return &PGSQLConn{
 		ConnectionString: connPath,
