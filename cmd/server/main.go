@@ -20,28 +20,32 @@ func main() {
 	if err != nil {
 		log.Error().Err(err)
 	}
-	dumper := connectors.NewFileDump(conf.DumpPath, conf.Recover, &log)
-	memStore := serverstorage.NewMemStorage(dumper, &log)
-	controller := controllers.NewServerController(&log, conf, memStore)
+	var dumper serverstorage.Dumper
 	if conf.DBPath != "" {
-		db, err := connectors.NewConnectionPGSQL(*conf)
+		dumper, err = connectors.NewConnectionPGSQL(conf.DBPath, &log)
 		if err != nil {
 			log.Error().Err(err)
 		}
-		controller.DB = db
-		defer db.Close()
+	} else if conf.DumpPath != "" {
+		dumper = connectors.NewFileDump(conf.DumpPath, conf.Recover, &log)
 	}
+	memStore := serverstorage.NewMemStorage(dumper, &log)
+	controller := controllers.NewServerController(&log, conf, memStore)
 	tickDump := time.NewTicker(time.Duration(conf.StoreInterval) * time.Second)
-	go func() {
-		for {
-			<-tickDump.C
-			if err := memStore.WriteDump(); err != nil {
+	if dumper != nil {
+		go func() {
+			for {
+				<-tickDump.C
+				if err := memStore.WriteDump(); err != nil {
+					log.Error().Err(err)
+				}
+			}
+		}()
+		if conf.Recover {
+			if err := memStore.ReadDump(); err != nil {
 				log.Error().Err(err)
 			}
 		}
-	}()
-	if err := memStore.ReadDump(); err != nil {
-		log.Error().Err(err)
 	}
 	router := chi.NewRouter()
 	router.Mount("/", controller.Route())
