@@ -47,7 +47,7 @@ func (pg *PGSQLConn) Ping() error {
 
 func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 	//checking table exists, creating table if not
-	_, err := pg.DBConn.Query("SELECT * from Metrics LIMIT 1;")
+	rows, err := pg.DBConn.Query("SELECT * from Metrics LIMIT 1;")
 	if err != nil {
 		pg.Logger.Info().Msg("Table Metrics not found, creating table")
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
@@ -63,6 +63,12 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 			return err
 		}
 		pg.Logger.Info().Msg("Table Metrics created")
+	}
+	if err := rows.Err(); err != nil {
+		pg.Logger.Error().Err(err)
+	}
+	if err := rows.Close(); err != nil {
+		pg.Logger.Error().Err(err)
 	}
 	store := serverstorage.MemStorage{}
 	if err := json.Unmarshal(jsonString, &store); err != nil {
