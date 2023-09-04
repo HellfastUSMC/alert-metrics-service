@@ -24,7 +24,7 @@ func (c *agentController) RenewMetrics() {
 }
 
 func (c *agentController) SendMetrics(url string) error {
-	err := c.Storage.SendMetrics(url)
+	err := c.Storage.SendBatchMetrics(url)
 	if err != nil {
 		return err
 	}

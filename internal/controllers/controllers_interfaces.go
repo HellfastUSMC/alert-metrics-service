@@ -2,7 +2,8 @@ package controllers
 
 type agentHandler interface {
 	RenewMetrics()
-	SendMetrics(string) error
+	SendMetrics(URL string) error
+	SendBatchMetrics(URL string) error
 }
 
 const (

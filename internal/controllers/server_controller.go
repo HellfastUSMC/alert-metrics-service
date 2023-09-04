@@ -24,6 +24,38 @@ type serverController struct {
 	DB       *connectors.PGSQLConn
 }
 
+func (c *serverController) getJSONMetricsBatch(res http.ResponseWriter, req *http.Request) {
+	updateMetrics := []Metrics{}
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(res, "can't read request body", http.StatusInternalServerError)
+		return
+	}
+	err = json.Unmarshal(body, &updateMetrics)
+	if err != nil {
+		http.Error(res, "can't unmarshal json", http.StatusInternalServerError)
+	}
+	for _, metric := range updateMetrics {
+		if strings.ToUpper(metric.MType) == GaugeStr {
+			if err := c.MemStore.SetMetric(metric.MType, metric.ID, metric.Value); err != nil {
+				http.Error(
+					res,
+					fmt.Sprintf("error occured when set metric - %e", err),
+					http.StatusInternalServerError,
+				)
+			}
+		} else {
+			if err := c.MemStore.SetMetric(metric.MType, metric.ID, metric.Delta); err != nil {
+				http.Error(
+					res,
+					fmt.Sprintf("error occured when set metric - %e", err),
+					http.StatusInternalServerError,
+				)
+			}
+		}
+	}
+}
+
 func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.Request) {
 	updateMetric := Metrics{}
 	body, err := io.ReadAll(req.Body)
@@ -241,6 +273,7 @@ func (c *serverController) Route() *chi.Mux {
 		router.Get("/ping", c.pingDB)
 		router.Post("/value/", c.returnJSONMetric)
 		router.Post("/update/", c.getJSONMetrics)
+		router.Post("/updates/", c.getJSONMetricsBatch)
 		router.Get("/value/{metricType}/{metricName}", c.returnMetric)
 		router.Post("/update/{metricType}/{metricName}/{metricValue}", c.getMetrics)
 	})
