@@ -1,9 +1,9 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -39,7 +39,8 @@ func main() {
 			<-tickReport.C
 			if err := controller.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {
 				log.Error().Err(err).Msg("Error when sending metrics to server")
-				if errors.As(err, &context.DeadlineExceeded) {
+				var netErr net.Error
+				if errors.As(err, &netErr) {
 					for n := 1; n <= 5; n = n + 2 {
 						time.Sleep(time.Second * time.Duration(n))
 						if err := controller.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {

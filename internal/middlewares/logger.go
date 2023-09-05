@@ -31,12 +31,10 @@ func ReqResLogging(log logger.CLogger) func(h http.Handler) http.Handler {
 				},
 				ResponseWriter: res,
 			}
-
+			duration := time.Since(start).String()
+			log.Info().Str("URI", uri).Str("method", method).Str("duration", duration).Int("code", rw.data.code).Int("size", rw.data.size)
 			h.ServeHTTP(&rw, r)
 
-			duration := time.Since(start).String()
-
-			log.Info().Str("URI", uri).Str("method", method).Str("duration", duration).Int("code", rw.data.code).Int("size", rw.data.size)
 		})
 	}
 }

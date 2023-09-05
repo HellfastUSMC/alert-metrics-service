@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -24,15 +26,6 @@ const (
 	CounterStr = "COUNTER"
 )
 
-//func (pg *PGSQLConn) Connect() error {
-//	db, err := sql.Open("pgx", pg.ConnectionString)
-//	if err != nil {
-//		return err
-//	}
-//	pg.DBConn = db
-//	return nil
-//}
-
 func (pg *PGSQLConn) Close() error {
 	err := pg.DBConn.Close()
 	if err != nil {
@@ -46,6 +39,20 @@ func (pg *PGSQLConn) Ping() error {
 	defer cancel()
 	err := pg.DBConn.PingContext(ctx)
 	if err != nil {
+		var netErr net.Error
+		if errors.As(err, &netErr) {
+			pg.Logger.Error().Err(err).Msg("Can't connect to DB server, trying again")
+			for n := 1; n <= 5; n = n + 2 {
+				time.Sleep(time.Second * time.Duration(n))
+				err = pg.DBConn.PingContext(ctx)
+				if err != nil {
+					pg.Logger.Error().Err(err).Msg(fmt.Sprintf("Tried connect again after %ds", n))
+				} else {
+					return nil
+				}
+			}
+		}
+		pg.Logger.Error().Err(err).Msg("Can't connect to DB, returning")
 		return err
 	}
 	return nil
@@ -55,7 +62,7 @@ func (pg *PGSQLConn) Ping() error {
 func (pg *PGSQLConn) CheckTable() error {
 	row := pg.DBConn.QueryRow("SELECT * from Metrics")
 	if row.Err() != nil {
-		pg.Logger.Info().Msg("Table Metrics not found, creating table")
+		pg.Logger.Info().Msg("Table Metrics not found, trying to create table")
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
 
@@ -66,6 +73,26 @@ func (pg *PGSQLConn) CheckTable() error {
 			DELTA bigint
         )`)
 		if err != nil {
+			pg.Logger.Error().Msg("Can't create table")
+			var netErr net.Error
+			if errors.As(err, &netErr) {
+				pg.Logger.Error().Err(err).Msg("Can't connect to DB server, trying again")
+				for n := 1; n <= 5; n = n + 2 {
+					time.Sleep(time.Second * time.Duration(n))
+					_, err := pg.DBConn.ExecContext(ctx, `CREATE TABLE Metrics (
+						NAME text NOT NULL UNIQUE PRIMARY KEY,
+						TYPE text NOT NULL,
+						VALUE double precision,
+						DELTA bigint
+					)`)
+					if err != nil {
+						pg.Logger.Error().Err(err).Msg(fmt.Sprintf("Tried to connect after %ds, but no luck", n))
+					} else {
+						return nil
+					}
+				}
+			}
+			pg.Logger.Error().Err(err).Msg("Can't connect to DB, returning")
 			return err
 		}
 		pg.Logger.Info().Msg("Table Metrics created")
@@ -92,7 +119,7 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 		res, err := dbTX.ExecContext(ctx, "UPDATE Metrics SET value=$1 WHERE name=$2 and type=$3", val, name, "Gauge")
 		row, _ := res.RowsAffected()
 		if err != nil {
-			pg.Logger.Error().Err(err)
+			pg.Logger.Error().Err(err).Msg("")
 		}
 
 		if row == 0 {
@@ -100,7 +127,7 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 			pg.Logger.Info().Msg(fmt.Sprintf("Creating %s with value %f of type Gauge", name, val))
 			_, err := dbTX.ExecContext(ctx, "INSERT INTO Metrics (value,name,type,delta) VALUES ($1,$2,$3,NULL)", val, name, "Gauge")
 			if err != nil {
-				pg.Logger.Error().Err(err)
+				pg.Logger.Error().Err(err).Msg("")
 			}
 		}
 	}
@@ -109,19 +136,33 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 		res, err := dbTX.ExecContext(ctx, "UPDATE Metrics SET delta=$1 WHERE name=$2 and type=$3", delta, name, "Counter")
 		rows, _ := res.RowsAffected()
 		if err != nil {
-			pg.Logger.Error().Err(err)
+			pg.Logger.Error().Err(err).Msg("")
 		}
 		if rows == 0 {
 			pg.Logger.Info().Msg(fmt.Sprintf("There's no metric called %s in DB", name))
 			pg.Logger.Info().Msg(fmt.Sprintf("Creating %s with delta %d of type Counter", name, delta))
 			_, err := dbTX.ExecContext(ctx, "INSERT INTO Metrics (delta, name, type, value) VALUES ($1,$2,$3,NULL)", delta, name, "Counter")
 			if err != nil {
-				pg.Logger.Error().Err(err)
+				pg.Logger.Error().Err(err).Msg("")
 			}
 		}
 	}
 	err = dbTX.Commit()
 	if err != nil {
+		var netErr net.Error
+		if errors.As(err, &netErr) {
+			pg.Logger.Error().Err(err).Msg("Can't connect to DB server, trying again")
+			for n := 1; n <= 5; n = n + 2 {
+				time.Sleep(time.Second * time.Duration(n))
+				err = dbTX.Commit()
+				if err != nil {
+					pg.Logger.Error().Err(err).Msg(fmt.Sprintf("Tried to connect after %ds, but no luck", n))
+				} else {
+					return nil
+				}
+			}
+		}
+		pg.Logger.Error().Err(err).Msg("Can't commit query to DB, returning")
 		return err
 	}
 	return nil
@@ -133,7 +174,23 @@ func (pg *PGSQLConn) ReadDump() ([]string, error) {
 	defer cancel()
 	rows, err := pg.DBConn.QueryContext(ctx, "SELECT * FROM Metrics;")
 	if err != nil {
-		return nil, err
+		var netErr net.Error
+		if errors.As(err, &netErr) {
+			pg.Logger.Error().Err(err).Msg("Can't connect to DB server, trying again")
+			for n := 1; n <= 5; n = n + 2 {
+				time.Sleep(time.Second * time.Duration(n))
+				rows, err = pg.DBConn.QueryContext(ctx, "SELECT * FROM Metrics;")
+				if err != nil {
+					pg.Logger.Error().Err(err).Msg(fmt.Sprintf("Tried to connect after %ds, but no luck", n))
+				} else {
+					err = nil
+					break
+				}
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
 	}
 	err = rows.Err()
 	if err != nil {
@@ -151,7 +208,7 @@ func (pg *PGSQLConn) ReadDump() ([]string, error) {
 	for rows.Next() {
 		err := rows.Scan(&name, &mType, &value, &delta)
 		if err != nil {
-			pg.Logger.Error().Err(err)
+			pg.Logger.Error().Err(err).Msg("")
 			return nil, err
 		}
 		if strings.ToUpper(mType) == GaugeStr {

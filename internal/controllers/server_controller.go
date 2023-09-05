@@ -81,7 +81,7 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 	if strings.ToUpper(updateMetric.MType) == GaugeStr {
 		flVal, err := strconv.ParseFloat(val, 64)
 		if err != nil {
-			c.Logger.Error().Err(err)
+			c.Logger.Error().Err(err).Msg("")
 			http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
 			return
 		}
@@ -89,7 +89,7 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 	} else if strings.ToUpper(updateMetric.MType) == CounterStr {
 		intVal, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			c.Logger.Error().Err(err)
+			c.Logger.Error().Err(err).Msg("")
 			http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
 			return
 		}
@@ -104,7 +104,7 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
 	res.WriteHeader(http.StatusOK)
 	if _, err = res.Write(jsonData); err != nil {
-		c.Logger.Error().Err(err)
+		c.Logger.Error().Err(err).Msg("")
 		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
 		return
 	}
@@ -172,7 +172,7 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
 	res.WriteHeader(http.StatusOK)
 	if _, err = res.Write(jsonData); err != nil {
-		c.Logger.Error().Err(err)
+		c.Logger.Error().Err(err).Msg("")
 		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
 		return
 	}
@@ -197,7 +197,7 @@ func (c *serverController) returnMetric(res http.ResponseWriter, req *http.Reque
 	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
 	res.WriteHeader(http.StatusOK)
 	if _, err = res.Write([]byte(val)); err != nil {
-		c.Logger.Error().Err(err)
+		c.Logger.Error().Err(err).Msg("")
 	}
 }
 
@@ -251,7 +251,7 @@ func (c *serverController) getAllStats(res http.ResponseWriter, _ *http.Request)
 	allStats := c.MemStore.GetAllData()
 	res.Header().Add("Content-Type", "text/html")
 	if _, err := res.Write([]byte(allStats)); err != nil {
-		c.Logger.Error().Err(err)
+		c.Logger.Error().Err(err).Msg("")
 	}
 }
 
