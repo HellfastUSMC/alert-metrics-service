@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
 )
@@ -87,76 +88,76 @@ func (m *Metric) RenewMetrics() {
 	m.RandomValue = Gauge(rand.Float64())
 }
 
-func (m *Metric) SendMetrics(hostAndPort string) error {
-	fieldsValues := reflect.ValueOf(m).Elem()
-	fieldsTypes := reflect.TypeOf(m).Elem()
-	for i := 0; i < fieldsValues.NumField(); i++ {
-		var fieldType string
-		if strings.Contains(strings.ToUpper(fieldsTypes.Field(i).Type.String()), gaugeStr) {
-			fieldType = strings.ToLower(gaugeStr)
-		}
-		if strings.Contains(strings.ToUpper(fieldsTypes.Field(i).Type.String()), counterStr) {
-			fieldType = strings.ToLower(counterStr)
-		}
-		metricStruct := controllers.Metrics{ID: fieldsTypes.Field(i).Name, MType: fieldType}
-		if strings.ToUpper(metricStruct.MType) == gaugeStr {
-			flVal := fieldsValues.Field(i).Float()
-			metricStruct.Value = &flVal
-		} else {
-			intVal := fieldsValues.Field(i).Int()
-			metricStruct.Delta = &intVal
-		}
-
-		jsonVal, err := json.Marshal(metricStruct)
-		if err != nil {
-			return fmt.Errorf("there's an error in marshalling JSON %e", err)
-		}
-
-		var buff bytes.Buffer
-		w, err := flate.NewWriter(&buff, flate.BestCompression)
-		if err != nil {
-			return fmt.Errorf("can't create new writer - %e", err)
-		}
-
-		_, err = w.Write(jsonVal)
-		if err != nil {
-			return fmt.Errorf("can't write compress JSON in gzip - %e", err)
-		}
-
-		err = w.Close()
-		if err != nil {
-			return fmt.Errorf("can't close writer - %e", err)
-		}
-		r, err := http.NewRequest(
-			http.MethodPost,
-			fmt.Sprintf("%s/update/", hostAndPort),
-			&buff,
-		)
-		if err != nil {
-			return fmt.Errorf("there's an error in creating send metric request: type - %s, name - %s, value - %v, error - %e",
-				fieldType,
-				fieldsTypes.Field(i).Name,
-				fieldsValues.Field(i),
-				err,
-			)
-		}
-		r.Header.Add("Content-Type", "application/json")
-		r.Header.Add("Accept-Encoding", "gzip")
-		r.Header.Add("Content-Encoding", "gzip")
-
-		client := &http.Client{}
-		res, err := client.Do(r)
-		if err != nil {
-			return fmt.Errorf("there's an error in sending request: %e", err)
-		}
-
-		err = res.Body.Close()
-		if err != nil {
-			return fmt.Errorf("error in closing res body - %e", err)
-		}
-	}
-	return nil
-}
+//func (m *Metric) SendMetrics(hostAndPort string) error {
+//	fieldsValues := reflect.ValueOf(m).Elem()
+//	fieldsTypes := reflect.TypeOf(m).Elem()
+//	for i := 0; i < fieldsValues.NumField(); i++ {
+//		var fieldType string
+//		if strings.Contains(strings.ToUpper(fieldsTypes.Field(i).Type.String()), gaugeStr) {
+//			fieldType = strings.ToLower(gaugeStr)
+//		}
+//		if strings.Contains(strings.ToUpper(fieldsTypes.Field(i).Type.String()), counterStr) {
+//			fieldType = strings.ToLower(counterStr)
+//		}
+//		metricStruct := controllers.Metrics{ID: fieldsTypes.Field(i).Name, MType: fieldType}
+//		if strings.ToUpper(metricStruct.MType) == gaugeStr {
+//			flVal := fieldsValues.Field(i).Float()
+//			metricStruct.Value = &flVal
+//		} else {
+//			intVal := fieldsValues.Field(i).Int()
+//			metricStruct.Delta = &intVal
+//		}
+//
+//		jsonVal, err := json.Marshal(metricStruct)
+//		if err != nil {
+//			return fmt.Errorf("there's an error in marshalling JSON %v", err)
+//		}
+//
+//		var buff bytes.Buffer
+//		w, err := flate.NewWriter(&buff, flate.BestCompression)
+//		if err != nil {
+//			return fmt.Errorf("can't create new writer - %v", err)
+//		}
+//
+//		_, err = w.Write(jsonVal)
+//		if err != nil {
+//			return fmt.Errorf("can't write compress JSON in gzip - %v", err)
+//		}
+//
+//		err = w.Close()
+//		if err != nil {
+//			return fmt.Errorf("can't close writer - %v", err)
+//		}
+//		r, err := http.NewRequest(
+//			http.MethodPost,
+//			fmt.Sprintf("%s/update/", hostAndPort),
+//			&buff,
+//		)
+//		if err != nil {
+//			return fmt.Errorf("there's an error in creating send metric request: type - %s, name - %s, value - %v, error - %v",
+//				fieldType,
+//				fieldsTypes.Field(i).Name,
+//				fieldsValues.Field(i),
+//				err,
+//			)
+//		}
+//		r.Header.Add("Content-Type", "application/json")
+//		r.Header.Add("Accept-Encoding", "gzip")
+//		r.Header.Add("Content-Encoding", "gzip")
+//
+//		client := &http.Client{}
+//		res, err := client.Do(r)
+//		if err != nil {
+//			return fmt.Errorf("there's an error in sending request: %v", err)
+//		}
+//
+//		err = res.Body.Close()
+//		if err != nil {
+//			return fmt.Errorf("error in closing res body - %v", err)
+//		}
+//	}
+//	return nil
+//}
 
 func (m *Metric) SendBatchMetrics(hostAndPort string) error {
 	fieldsValues := reflect.ValueOf(m).Elem()
@@ -183,23 +184,21 @@ func (m *Metric) SendBatchMetrics(hostAndPort string) error {
 	if metricsList == nil {
 		return fmt.Errorf("nothing to send, metrics list is empty")
 	}
-	fmt.Println(metricsList)
 	jsonByte, _ := json.Marshal(metricsList)
-	fmt.Println(jsonByte)
 	var buff bytes.Buffer
 	w, err := flate.NewWriter(&buff, flate.BestCompression)
 	if err != nil {
-		return fmt.Errorf("can't create new writer - %e", err)
+		return fmt.Errorf("can't create new writer - %v", err)
 	}
 
 	_, err = w.Write(jsonByte)
 	if err != nil {
-		return fmt.Errorf("can't write compress JSON in gzip - %e", err)
+		return fmt.Errorf("can't write compress JSON in gzip - %v", err)
 	}
 
 	err = w.Close()
 	if err != nil {
-		return fmt.Errorf("can't close writer - %e", err)
+		return fmt.Errorf("can't close writer - %v", err)
 	}
 	r, err := http.NewRequest(
 		http.MethodPost,
@@ -207,7 +206,7 @@ func (m *Metric) SendBatchMetrics(hostAndPort string) error {
 		&buff,
 	)
 	if err != nil {
-		return fmt.Errorf("there's an error in creating send metric request: type - %s, error - %e",
+		return fmt.Errorf("there's an error in creating send metric request: type - %s, error - %v",
 			fieldType,
 			err,
 		)
@@ -216,15 +215,15 @@ func (m *Metric) SendBatchMetrics(hostAndPort string) error {
 	r.Header.Add("Accept-Encoding", "gzip")
 	r.Header.Add("Content-Encoding", "gzip")
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: time.Second * 2}
 	res, err := client.Do(r)
 	if err != nil {
-		return fmt.Errorf("there's an error in sending request: %e", err)
+		return fmt.Errorf("there's an error in sending request: %v", err)
 	}
 
 	err = res.Body.Close()
 	if err != nil {
-		return fmt.Errorf("error in closing res body - %e", err)
+		return fmt.Errorf("error in closing res body - %v", err)
 	}
 	return nil
 }
