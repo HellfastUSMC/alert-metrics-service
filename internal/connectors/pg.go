@@ -83,9 +83,13 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
+	dbTX, err := pg.DBConn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
 	for name, val := range store.Gauge {
 		pg.Logger.Info().Msg(fmt.Sprintf("Updating %s with value %f of type Gauge", name, val))
-		res, err := pg.DBConn.ExecContext(ctx, "UPDATE Metrics SET value=$1 WHERE name=$2 and type=$3", val, name, "Gauge")
+		res, err := dbTX.ExecContext(ctx, "UPDATE Metrics SET value=$1 WHERE name=$2 and type=$3", val, name, "Gauge")
 		row, _ := res.RowsAffected()
 		if err != nil {
 			pg.Logger.Error().Err(err)
@@ -94,7 +98,7 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 		if row == 0 {
 			pg.Logger.Info().Msg(fmt.Sprintf("There's no metric called %s in DB", name))
 			pg.Logger.Info().Msg(fmt.Sprintf("Creating %s with value %f of type Gauge", name, val))
-			_, err := pg.DBConn.ExecContext(ctx, "INSERT INTO Metrics (value,name,type,delta) VALUES ($1,$2,$3,NULL)", val, name, "Gauge")
+			_, err := dbTX.ExecContext(ctx, "INSERT INTO Metrics (value,name,type,delta) VALUES ($1,$2,$3,NULL)", val, name, "Gauge")
 			if err != nil {
 				pg.Logger.Error().Err(err)
 			}
@@ -102,7 +106,7 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 	}
 	for name, delta := range store.Counter {
 		pg.Logger.Info().Msg(fmt.Sprintf("Updating %s with delta %d of type Counter", name, delta))
-		res, err := pg.DBConn.ExecContext(ctx, "UPDATE Metrics SET delta=$1 WHERE name=$2 and type=$3", delta, name, "Counter")
+		res, err := dbTX.ExecContext(ctx, "UPDATE Metrics SET delta=$1 WHERE name=$2 and type=$3", delta, name, "Counter")
 		rows, _ := res.RowsAffected()
 		if err != nil {
 			pg.Logger.Error().Err(err)
@@ -110,11 +114,15 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 		if rows == 0 {
 			pg.Logger.Info().Msg(fmt.Sprintf("There's no metric called %s in DB", name))
 			pg.Logger.Info().Msg(fmt.Sprintf("Creating %s with delta %d of type Counter", name, delta))
-			_, err := pg.DBConn.ExecContext(ctx, "INSERT INTO Metrics (delta, name, type, value) VALUES ($1,$2,$3,NULL)", delta, name, "Counter")
+			_, err := dbTX.ExecContext(ctx, "INSERT INTO Metrics (delta, name, type, value) VALUES ($1,$2,$3,NULL)", delta, name, "Counter")
 			if err != nil {
 				pg.Logger.Error().Err(err)
 			}
 		}
+	}
+	err = dbTX.Commit()
+	if err != nil {
+		return err
 	}
 	return nil
 }
