@@ -1,9 +1,9 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"time"
 
@@ -39,17 +39,22 @@ func main() {
 			<-tickReport.C
 			if err := controller.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {
 				log.Error().Err(err).Msg("Error when sending metrics to server")
-				var netErr net.Error
-				if errors.As(err, &netErr) {
-					for n := 1; n <= 5; n = n + 2 {
-						time.Sleep(time.Second * time.Duration(n))
+				//var netErr net.Error
+				//fmt.Println(errors.As(err, &context.DeadlineExceeded))
+				//if errors.As(err, &netErr) {
+				if errors.As(err, &context.DeadlineExceeded) {
+					time.Sleep(time.Second * 1)
+					for n := 0; n < 3; n++ {
 						if err := controller.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {
-							log.Error().Err(err).Msg(fmt.Sprintf("Error when sending metrics to server, tried after sec - %ds", n))
+							log.Error().Err(err).Msg(fmt.Sprintf("Error when sending metrics to server, retry %d", n+1))
 						} else {
 							log.Info().Msg("Metrics batch sent to server")
 						}
+						if n != 2 {
+							time.Sleep(time.Second * 2)
+						}
 					}
-					log.Error().Msg("Tried 4 times to send request to server...")
+					log.Error().Msg("Tried 4 times to send request to server")
 				}
 			}
 		}
