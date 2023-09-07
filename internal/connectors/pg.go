@@ -3,18 +3,18 @@ package connectors
 import (
 	"context"
 	"database/sql"
+	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
-	"os"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 )
 
 type PGSQLConn struct {
@@ -73,51 +73,60 @@ func (pg *PGSQLConn) createTable(ctx context.Context) error {
 	//if err != nil {
 	//	return err
 	//}
-	cmd := exec.Cmd{Path: "curl -L https://packagecloud.io/golang-migrate/migrate/gpgkey | apt-key add -", Stdout: os.Stdout}
-	err := cmd.Run()
-	if err != nil {
-		return err
-	}
-	cmd = exec.Cmd{Path: `echo "deb https://packagecloud.io/golang-migrate/migrate/ubuntu/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/migrate.list`, Stdout: os.Stdout}
-	err = cmd.Run()
-	if err != nil {
-		return err
-	}
-	cmd = exec.Cmd{Path: "apt-get update", Stdout: os.Stdout}
-	err = cmd.Run()
-	if err != nil {
-		return err
-	}
-	cmd = exec.Cmd{Path: "apt-get install -y migrate", Stdout: os.Stdout}
-	err = cmd.Run()
-	if err != nil {
-		return err
-	}
+	//cmd := exec.Cmd{Path: "curl -L https://packagecloud.io/golang-migrate/migrate/gpgkey | apt-key add -", Stdout: os.Stdout}
+	//err := cmd.Run()
+	//if err != nil {
+	//	return err
+	//}
+	//cmd = exec.Cmd{Path: `echo "deb https://packagecloud.io/golang-migrate/migrate/ubuntu/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/migrate.list`, Stdout: os.Stdout}
+	//err = cmd.Run()
+	//if err != nil {
+	//	return err
+	//}
+	//cmd = exec.Cmd{Path: "apt-get update", Stdout: os.Stdout}
+	//err = cmd.Run()
+	//if err != nil {
+	//	return err
+	//}
+	//cmd = exec.Cmd{Path: "apt-get install -y migrate", Stdout: os.Stdout}
+	//err = cmd.Run()
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//dir, _ := os.Getwd()
+	//exect, _ := os.Executable()
+	//fmt.Println(dir, exect)
+	//
+	//cmd = exec.Cmd{Path: "migrate create -ext sql -dir database/migration/ -seq init_mg", Stdout: os.Stdout}
+	//err = cmd.Run()
+	//if err != nil {
+	//	return err
+	//}
+	//createTableByte := []byte(
+	//	"CREATE TABLE IF NOT EXISTS Metrics (NAME text NOT NULL UNIQUE PRIMARY KEY," +
+	//		"TYPE text NOT NULL," +
+	//		"VALUE double precision," +
+	//		"DELTA bigint);")
+	//err = os.WriteFile("database/migration/000002_init_mg.up.sql", createTableByte, 0777)
+	//if err != nil {
+	//	return err
+	//}
+	//cmd = exec.Cmd{Path: fmt.Sprintf(
+	//	`migrate -path database/migration/ -database "%s" -verbose up`,
+	//	pg.ConnectionString,
+	//), Stdout: os.Stdout}
+	//err = cmd.Run()
+	//if err != nil {
+	//	return err
+	//}
+	var embedMigrations embed.FS
+	goose.SetBaseFS(embedMigrations)
 
-	dir, _ := os.Getwd()
-	exect, _ := os.Executable()
-	fmt.Println(dir, exect)
-
-	cmd = exec.Cmd{Path: "migrate create -ext sql -dir database/migration/ -seq init_mg", Stdout: os.Stdout}
-	err = cmd.Run()
-	if err != nil {
+	if err := goose.SetDialect("postgres"); err != nil {
 		return err
 	}
-	createTableByte := []byte(
-		"CREATE TABLE IF NOT EXISTS Metrics (NAME text NOT NULL UNIQUE PRIMARY KEY," +
-			"TYPE text NOT NULL," +
-			"VALUE double precision," +
-			"DELTA bigint);")
-	err = os.WriteFile("database/migration/000002_init_mg.up.sql", createTableByte, 0777)
-	if err != nil {
-		return err
-	}
-	cmd = exec.Cmd{Path: fmt.Sprintf(
-		`migrate -path database/migration/ -database "%s" -verbose up`,
-		pg.ConnectionString,
-	), Stdout: os.Stdout}
-	err = cmd.Run()
-	if err != nil {
+	if err := goose.Up(pg.DBConn, os.GoPath"migrations"); err != nil {
 		return err
 	}
 	return nil
