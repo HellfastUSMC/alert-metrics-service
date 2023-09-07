@@ -40,7 +40,7 @@ func (c *serverController) getJSONMetricsBatch(res http.ResponseWriter, req *htt
 			if err := c.MemStore.SetMetric(metric.MType, metric.ID, metric.Value); err != nil {
 				http.Error(
 					res,
-					fmt.Sprintf("error occured when set metric - %e", err),
+					fmt.Sprintf("error occured when set metric - %v", err),
 					http.StatusInternalServerError,
 				)
 			}
@@ -48,7 +48,7 @@ func (c *serverController) getJSONMetricsBatch(res http.ResponseWriter, req *htt
 			if err := c.MemStore.SetMetric(metric.MType, metric.ID, metric.Delta); err != nil {
 				http.Error(
 					res,
-					fmt.Sprintf("error occured when set metric - %e", err),
+					fmt.Sprintf("error occured when set metric - %v", err),
 					http.StatusInternalServerError,
 				)
 			}
@@ -75,14 +75,14 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 	val, err := c.MemStore.GetValueByName(updateMetric.MType, updateMetric.ID)
 	if err != nil {
 		c.Logger.Error().Err(err).Msg("error of GetValueByName ")
-		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusNotFound)
+		http.Error(res, fmt.Sprintf("there's an error %v", err), http.StatusNotFound)
 		return
 	}
 	if strings.ToUpper(updateMetric.MType) == GaugeStr {
 		flVal, err := strconv.ParseFloat(val, 64)
 		if err != nil {
 			c.Logger.Error().Err(err).Msg("")
-			http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
+			http.Error(res, fmt.Sprintf("there's an error %v", err), http.StatusInternalServerError)
 			return
 		}
 		updateMetric.Value = &flVal
@@ -90,7 +90,7 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 		intVal, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
 			c.Logger.Error().Err(err).Msg("")
-			http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
+			http.Error(res, fmt.Sprintf("there's an error %v", err), http.StatusInternalServerError)
 			return
 		}
 		updateMetric.Delta = &intVal
@@ -105,7 +105,7 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 	res.WriteHeader(http.StatusOK)
 	if _, err = res.Write(jsonData); err != nil {
 		c.Logger.Error().Err(err).Msg("")
-		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
+		http.Error(res, fmt.Sprintf("there's an error %v", err), http.StatusInternalServerError)
 		return
 	}
 }
@@ -135,7 +135,7 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 			c.Logger.Error().Err(err).Msg("error of SetMetric")
 			http.Error(
 				res,
-				fmt.Sprintf("Error occurred when setting metric - %e", err),
+				fmt.Sprintf("Error occurred when setting metric - %v", err),
 				http.StatusInternalServerError,
 			)
 			return
@@ -148,7 +148,7 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 			c.Logger.Error().Err(err).Msg("error of SetMetric")
 			http.Error(
 				res,
-				fmt.Sprintf("Error occurred when setting metric - %e", err),
+				fmt.Sprintf("Error occurred when setting metric - %v", err),
 				http.StatusInternalServerError,
 			)
 			return
@@ -173,7 +173,7 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 	res.WriteHeader(http.StatusOK)
 	if _, err = res.Write(jsonData); err != nil {
 		c.Logger.Error().Err(err).Msg("")
-		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
+		http.Error(res, fmt.Sprintf("there's an error %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -191,7 +191,7 @@ func (c *serverController) returnMetric(res http.ResponseWriter, req *http.Reque
 	val, err := c.MemStore.GetValueByName(updateURL.MetricType, updateURL.MetricName)
 	if err != nil {
 		c.Logger.Error().Err(err).Msg("error of GetValueByName ")
-		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusNotFound)
+		http.Error(res, fmt.Sprintf("there's an error %v", err), http.StatusNotFound)
 	}
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
@@ -229,7 +229,7 @@ func (c *serverController) getMetrics(res http.ResponseWriter, req *http.Request
 		c.Logger.Error().Err(err).Msg("error of SetMetric")
 		http.Error(
 			res,
-			fmt.Sprintf("Error occurred when converting to float64 or int64 - %e", err),
+			fmt.Sprintf("Error occurred when converting to float64 or int64 - %v", err),
 			http.StatusInternalServerError,
 		)
 		return

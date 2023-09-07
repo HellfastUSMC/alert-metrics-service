@@ -72,7 +72,7 @@ func (m *MemStorage) WriteDump() error {
 	}
 	err = m.Dumper.WriteDump(jsonMemStore)
 	if err != nil {
-		return fmt.Errorf("can't write dump data to file - %e", err)
+		return fmt.Errorf("can't write dump data - %v", err)
 	}
 	return nil
 }

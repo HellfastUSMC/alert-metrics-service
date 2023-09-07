@@ -40,9 +40,7 @@ func main() {
 			if err := controller.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {
 				log.Error().Err(err).Msg("Error when sending metrics to server")
 				var netErr net.Error
-				//fmt.Println(errors.As(err, &context.DeadlineExceeded))
 				if errors.As(err, &netErr) {
-					//if errors.As(err, &context.DeadlineExceeded) {
 					time.Sleep(time.Second * 1)
 					for n := 0; n < 3; n++ {
 						if err := controller.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {

@@ -25,7 +25,7 @@ func main() {
 	if conf.DBPath != "" {
 		dumper, err = connectors.NewConnectionPGSQL(conf.DBPath, &log)
 		if err != nil {
-			log.Error().Err(err)
+			log.Error().Err(err).Msg("")
 		}
 		log.Info().Msg("Using DB dumper")
 	} else if conf.DumpPath != "" {
@@ -43,13 +43,13 @@ func main() {
 			for {
 				<-tickDump.C
 				if err := memStore.WriteDump(); err != nil {
-					log.Error().Err(err)
+					log.Error().Err(err).Msg("")
 				}
 			}
 		}()
 		if conf.Recover {
 			if err := memStore.ReadDump(); err != nil {
-				log.Error().Err(err)
+				log.Error().Err(err).Msg("")
 			}
 		}
 	}

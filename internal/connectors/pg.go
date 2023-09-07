@@ -17,6 +17,9 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
+//go:embed migrations/*.sql
+var embedMigrations embed.FS
+
 type PGSQLConn struct {
 	ConnectionString string
 	DBConn           *sql.DB
@@ -63,70 +66,13 @@ func (pg *PGSQLConn) Ping() error {
 	return nil
 }
 
-func (pg *PGSQLConn) createTable(ctx context.Context) error {
-	//_, err := pg.DBConn.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS Metrics (
-	//		NAME text NOT NULL UNIQUE PRIMARY KEY,
-	//		TYPE text NOT NULL,
-	//		VALUE double precision,
-	//		DELTA bigint
-	//    )`)
-	//if err != nil {
-	//	return err
-	//}
-	//cmd := exec.Cmd{Path: "curl -L https://packagecloud.io/golang-migrate/migrate/gpgkey | apt-key add -", Stdout: os.Stdout}
-	//err := cmd.Run()
-	//if err != nil {
-	//	return err
-	//}
-	//cmd = exec.Cmd{Path: `echo "deb https://packagecloud.io/golang-migrate/migrate/ubuntu/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/migrate.list`, Stdout: os.Stdout}
-	//err = cmd.Run()
-	//if err != nil {
-	//	return err
-	//}
-	//cmd = exec.Cmd{Path: "apt-get update", Stdout: os.Stdout}
-	//err = cmd.Run()
-	//if err != nil {
-	//	return err
-	//}
-	//cmd = exec.Cmd{Path: "apt-get install -y migrate", Stdout: os.Stdout}
-	//err = cmd.Run()
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//dir, _ := os.Getwd()
-	//exect, _ := os.Executable()
-	//fmt.Println(dir, exect)
-	//
-	//cmd = exec.Cmd{Path: "migrate create -ext sql -dir database/migration/ -seq init_mg", Stdout: os.Stdout}
-	//err = cmd.Run()
-	//if err != nil {
-	//	return err
-	//}
-	//createTableByte := []byte(
-	//	"CREATE TABLE IF NOT EXISTS Metrics (NAME text NOT NULL UNIQUE PRIMARY KEY," +
-	//		"TYPE text NOT NULL," +
-	//		"VALUE double precision," +
-	//		"DELTA bigint);")
-	//err = os.WriteFile("database/migration/000002_init_mg.up.sql", createTableByte, 0777)
-	//if err != nil {
-	//	return err
-	//}
-	//cmd = exec.Cmd{Path: fmt.Sprintf(
-	//	`migrate -path database/migration/ -database "%s" -verbose up`,
-	//	pg.ConnectionString,
-	//), Stdout: os.Stdout}
-	//err = cmd.Run()
-	//if err != nil {
-	//	return err
-	//}
-	var embedMigrations embed.FS
+func (pg *PGSQLConn) createTable() error {
 	goose.SetBaseFS(embedMigrations)
 
 	if err := goose.SetDialect("postgres"); err != nil {
 		return err
 	}
-	if err := goose.Up(pg.DBConn, os.GoPath"migrations"); err != nil {
+	if err := goose.Up(pg.DBConn, "migrations"); err != nil {
 		return err
 	}
 	return nil
@@ -137,9 +83,7 @@ func (pg *PGSQLConn) CheckTable() error {
 	row := pg.DBConn.QueryRow("SELECT * from Metrics")
 	if row.Err() != nil {
 		pg.Logger.Info().Msg("Table Metrics not found, trying to create table")
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		defer cancel()
-		err := pg.createTable(ctx)
+		err := pg.createTable()
 		if err != nil {
 			pg.Logger.Error().Msg("Can't create table")
 			var netErr net.Error
@@ -147,7 +91,7 @@ func (pg *PGSQLConn) CheckTable() error {
 				pg.Logger.Error().Err(err).Msg("Can't connect to DB server, trying again")
 				time.Sleep(time.Second * 1)
 				for n := 0; n < 3; n++ {
-					err = pg.createTable(ctx)
+					err = pg.createTable()
 					if err != nil {
 						pg.Logger.Error().Err(err).Msg(fmt.Sprintf("Tried to connect %d times, no luck", n+1))
 					} else {
@@ -165,8 +109,42 @@ func (pg *PGSQLConn) CheckTable() error {
 	}
 	return nil
 }
+func (pg *PGSQLConn) updateMetric(
+	metricType string,
+	dbTX *sql.Tx,
+	ctx context.Context,
+	delta serverstorage.Counter,
+	val serverstorage.Gauge,
+	name string,
+) (int64, error) {
+	counterUpdateQuery := "UPDATE Metrics SET delta=$1 WHERE name=$2 and type=$3"
+	gaugeUpdateQuery := "UPDATE Metrics SET value=$1 WHERE name=$2 and type=$3"
+	var rows int64
+	if strings.ToUpper(metricType) == GaugeStr {
+		pg.Logger.Info().Msg(fmt.Sprintf("Updating %s with value %v of type %s", name, val, metricType))
+		res, err := dbTX.ExecContext(ctx, gaugeUpdateQuery, val, name, metricType)
+		if err != nil {
+			return -1, err
+		}
+		rows, err = res.RowsAffected()
+		if err != nil {
+			return -1, err
+		}
+	} else if strings.ToUpper(metricType) == CounterStr {
+		pg.Logger.Info().Msg(fmt.Sprintf("Updating %s with value %v of type %s", name, delta, metricType))
+		res, err := dbTX.ExecContext(ctx, counterUpdateQuery, delta, name, metricType)
+		if err != nil {
+			return -1, err
+		}
+		rows, err = res.RowsAffected()
+		if err != nil {
+			return -1, err
+		}
+	}
+	return rows, nil
+}
 
-func (pg *PGSQLConn) updateOrCreateMetric(
+func (pg *PGSQLConn) createMetric(
 	metricType string,
 	dbTX *sql.Tx,
 	ctx context.Context,
@@ -174,40 +152,20 @@ func (pg *PGSQLConn) updateOrCreateMetric(
 	val serverstorage.Gauge,
 	name string,
 ) error {
-	gaugeUpdateQuery := "UPDATE Metrics SET value=$1 WHERE name=$2 and type=$3"
 	gaugeInsertQuery := "INSERT INTO Metrics (value,name,type,delta) VALUES ($1,$2,$3,NULL)"
-	counterUpdateQuery := "UPDATE Metrics SET delta=$1 WHERE name=$2 and type=$3"
 	counterInsertQuery := "INSERT INTO Metrics (delta, name, type, value) VALUES ($1,$2,$3,NULL)"
-	var res sql.Result
 	var err error
 	if strings.ToUpper(metricType) == GaugeStr {
-		pg.Logger.Info().Msg(fmt.Sprintf("Updating %s with value %v of type %s", name, val, metricType))
-		res, err = dbTX.ExecContext(ctx, gaugeUpdateQuery, val, name, metricType)
+		pg.Logger.Info().Msg(fmt.Sprintf("There's no metric called %s in DB", name))
+		pg.Logger.Info().Msg(fmt.Sprintf("Creating %s with value %v of type %s", name, val, metricType))
+		_, err = dbTX.ExecContext(ctx, gaugeInsertQuery, val, name, metricType)
 	} else if strings.ToUpper(metricType) == CounterStr {
-		pg.Logger.Info().Msg(fmt.Sprintf("Updating %s with value %v of type %s", name, delta, metricType))
-		res, err = dbTX.ExecContext(ctx, counterUpdateQuery, delta, name, metricType)
+		pg.Logger.Info().Msg(fmt.Sprintf("There's no metric called %s in DB", name))
+		pg.Logger.Info().Msg(fmt.Sprintf("Creating %s with value %v of type %s", name, delta, metricType))
+		_, err = dbTX.ExecContext(ctx, counterInsertQuery, delta, name, metricType)
 	}
-	rows, _ := res.RowsAffected()
 	if err != nil {
 		pg.Logger.Error().Err(err).Msg("")
-		return err
-	}
-	if rows == 0 {
-		if strings.ToUpper(metricType) == GaugeStr {
-			pg.Logger.Info().Msg(fmt.Sprintf("There's no metric called %s in DB", name))
-			pg.Logger.Info().Msg(fmt.Sprintf("Creating %s with value %v of type %s", name, val, metricType))
-			_, err = dbTX.ExecContext(ctx, gaugeInsertQuery, val, name, metricType)
-		} else if strings.ToUpper(metricType) == CounterStr {
-			pg.Logger.Info().Msg(fmt.Sprintf("There's no metric called %s in DB", name))
-			pg.Logger.Info().Msg(fmt.Sprintf("Creating %s with value %v of type %s", name, delta, metricType))
-			_, err = dbTX.ExecContext(ctx, counterInsertQuery, delta, name, metricType)
-		}
-		if err != nil {
-			pg.Logger.Error().Err(err).Msg("")
-			return err
-		}
-	}
-	if err != nil {
 		return err
 	}
 	return nil
@@ -227,43 +185,30 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 	if err != nil {
 		return err
 	}
+
 	for name, val := range store.Gauge {
-		//	pg.Logger.Info().Msg(fmt.Sprintf("Updating %s with value %f of type Gauge", name, val))
-		//	res, err := dbTX.ExecContext(ctx, "UPDATE Metrics SET value=$1 WHERE name=$2 and type=$3", val, name, "Gauge")
-		//	row, _ := res.RowsAffected()
-		//	if err != nil {
-		//		pg.Logger.Error().Err(err).Msg("")
-		//	}
-		//
-		//	if row == 0 {
-		//		pg.Logger.Info().Msg(fmt.Sprintf("There's no metric called %s in DB", name))
-		//		pg.Logger.Info().Msg(fmt.Sprintf("Creating %s with value %f of type Gauge", name, val))
-		//		_, err := dbTX.ExecContext(ctx, "INSERT INTO Metrics (value,name,type,delta) VALUES ($1,$2,$3,NULL)", val, name, "Gauge")
-		//		if err != nil {
-		//			pg.Logger.Error().Err(err).Msg("")
-		//		}
-		//	}
-		if err := pg.updateOrCreateMetric(GaugeStr, dbTX, ctx, 0, val, name); err != nil {
+		rows, err := pg.updateMetric(GaugeStr, dbTX, ctx, 0, val, name)
+		if err != nil {
 			pg.Logger.Error().Err(err).Msg("")
 		}
+		if rows == 0 {
+			err = pg.createMetric(GaugeStr, dbTX, ctx, 0, val, name)
+			if err != nil {
+				return err
+			}
+		}
 	}
+
 	for name, delta := range store.Counter {
-		//	pg.Logger.Info().Msg(fmt.Sprintf("Updating %s with delta %d of type Counter", name, delta))
-		//	res, err := dbTX.ExecContext(ctx, "UPDATE Metrics SET delta=$1 WHERE name=$2 and type=$3", delta, name, "Counter")
-		//	rows, _ := res.RowsAffected()
-		//	if err != nil {
-		//		pg.Logger.Error().Err(err).Msg("")
-		//	}
-		//	if rows == 0 {
-		//		pg.Logger.Info().Msg(fmt.Sprintf("There's no metric called %s in DB", name))
-		//		pg.Logger.Info().Msg(fmt.Sprintf("Creating %s with delta %d of type Counter", name, delta))
-		//		_, err := dbTX.ExecContext(ctx, "INSERT INTO Metrics (delta, name, type, value) VALUES ($1,$2,$3,NULL)", delta, name, "Counter")
-		//		if err != nil {
-		//			pg.Logger.Error().Err(err).Msg("")
-		//		}
-		//	}
-		if err := pg.updateOrCreateMetric(CounterStr, dbTX, ctx, delta, 0, name); err != nil {
+		rows, err := pg.updateMetric(CounterStr, dbTX, ctx, delta, 0, name)
+		if err != nil {
 			pg.Logger.Error().Err(err).Msg("")
+		}
+		if rows == 0 {
+			err = pg.createMetric(CounterStr, dbTX, ctx, delta, 0, name)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	err = dbTX.Commit()
@@ -285,6 +230,7 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 			}
 		}
 		pg.Logger.Error().Err(err).Msg("Can't commit query to DB, returning")
+		err = dbTX.Rollback()
 		return err
 	}
 	return nil
