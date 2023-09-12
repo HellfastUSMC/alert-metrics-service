@@ -3,7 +3,6 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/HellfastUSMC/alert-metrics-service/internal/connectors"
 	"io"
 	"net/http"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/connectors"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/middlewares"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"

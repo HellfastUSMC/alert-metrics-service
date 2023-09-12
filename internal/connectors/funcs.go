@@ -9,8 +9,8 @@ import (
 func GetDumper(log logger.CLogger, conf *config.SysConfig) (serverstorage.Dumper, error) {
 	if conf.DBPath != "" {
 		dumper, err := NewConnectionPGSQL(conf.DBPath, log)
-		if err != nil {
-			log.Error().Err(err).Msg("")
+		if err != nil || dumper == nil {
+			log.Error().Err(err).Msg("error in creating new SQL connection")
 			return nil, err
 		}
 		log.Info().Msg("Using DB dumper")

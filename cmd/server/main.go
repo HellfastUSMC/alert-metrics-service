@@ -19,15 +19,14 @@ func main() {
 	log := zerolog.New(os.Stdout).Level(zerolog.TraceLevel).With().Timestamp().Logger()
 	conf, err := config.GetServerConfigData()
 	if err != nil {
-		log.Error().Err(err).Msg("")
+		log.Error().Err(err).Msg("config create error")
 	}
 	dumper, err := connectors.GetDumper(&log, conf)
 	if err != nil {
-		log.Error().Err(err).Msg("")
+		log.Error().Err(err).Msg("dumper create error")
 	}
 	memStore := serverstorage.NewMemStorage(dumper, &log)
 	controller := controllers.NewServerController(&log, conf, memStore)
-	fmt.Println(memStore, dumper != nil, conf)
 	tickDump := time.NewTicker(time.Duration(conf.StoreInterval) * time.Second)
 	if dumper != nil {
 		go func() {
@@ -35,18 +34,14 @@ func main() {
 			for {
 				<-tickDump.C
 				if err := memStore.WriteDump(); err != nil {
-					log.Error().Err(err).Msg("")
+					log.Error().Err(err).Msg("dump write error")
 				}
 			}
 		}()
 		if conf.Recover {
-			fmt.Println("wewasdasdasdsa11111qerqw")
 			if err := memStore.ReadDump(); err != nil {
-				log.Error().Err(err).Msg("")
-				fmt.Println("wewqerqw")
+				log.Error().Err(err).Msg("dump read error")
 			}
-			fmt.Println("wewqerqw123123123123")
-			fmt.Println(memStore)
 		}
 	}
 	router := chi.NewRouter()

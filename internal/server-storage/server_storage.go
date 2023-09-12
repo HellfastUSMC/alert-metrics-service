@@ -78,10 +78,13 @@ func (m *MemStorage) WriteDump() error {
 }
 
 func (m *MemStorage) Ping() error {
-	if err := m.Dumper.Ping(); err != nil {
-		return err
+	if m.Dumper != nil {
+		if err := m.Dumper.Ping(); err != nil {
+			return err
+		}
+		return nil
 	}
-	return nil
+	return fmt.Errorf("dumper is nil")
 }
 
 func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue interface{}) error {
