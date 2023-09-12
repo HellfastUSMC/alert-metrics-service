@@ -49,8 +49,11 @@ func (pg *PGSQLConn) Ping() error {
 		return nil
 	}
 	var netErr net.Error
-	_, err := retryFunc(2, 3, nil, f, &netErr)
+	rows, err := retryFunc(2, 3, nil, f, &netErr)
 	if err != nil {
+		return err
+	}
+	if rows.Err() != nil {
 		return err
 	}
 	return nil
@@ -202,7 +205,10 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 		return nil
 	}
 	var netErr net.Error
-	_, err = retryFunc(2, 3, nil, f, &netErr)
+	rows, err := retryFunc(2, 3, nil, f, &netErr)
+	if rows.Err() != nil {
+		return err
+	}
 	if err != nil {
 		return err
 	}
@@ -222,6 +228,9 @@ func (pg *PGSQLConn) ReadDump() ([]string, error) {
 		return rows, nil
 	}
 	rows, err := retryFunc(2, 3, f, nil, &netErr)
+	if err != nil {
+		return nil, err
+	}
 	err = rows.Err()
 	if err != nil {
 		return nil, err
@@ -251,6 +260,9 @@ func (pg *PGSQLConn) ReadDump() ([]string, error) {
 			mStore.Counter[name] = serverstorage.Counter(delta.Int64)
 		}
 		jsonStore, err := json.Marshal(mStore)
+		if err != nil {
+			return nil, err
+		}
 		res = append(res, string(jsonStore))
 		res = append(res, "\n")
 		rCount++
