@@ -19,23 +19,15 @@ func main() {
 	log := zerolog.New(os.Stdout).Level(zerolog.TraceLevel).With().Timestamp().Logger()
 	conf, err := config.GetServerConfigData()
 	if err != nil {
-		log.Error().Err(err)
+		log.Error().Err(err).Msg("")
 	}
-	var dumper serverstorage.Dumper
-	if conf.DBPath != "" {
-		dumper, err = connectors.NewConnectionPGSQL(conf.DBPath, &log)
-		if err != nil {
-			log.Error().Err(err).Msg("")
-		}
-		log.Info().Msg("Using DB dumper")
-	} else if conf.DumpPath != "" {
-		dumper = connectors.NewFileDump(conf.DumpPath, conf.Recover, &log)
-		log.Info().Msg("Using file dumper")
-	} else {
-		log.Info().Msg("Using memory dumper")
+	dumper, err := connectors.GetDumper(&log, conf)
+	if err != nil {
+		log.Error().Err(err).Msg("")
 	}
 	memStore := serverstorage.NewMemStorage(dumper, &log)
 	controller := controllers.NewServerController(&log, conf, memStore)
+	fmt.Println(memStore, dumper != nil, conf)
 	tickDump := time.NewTicker(time.Duration(conf.StoreInterval) * time.Second)
 	if dumper != nil {
 		go func() {
@@ -48,9 +40,13 @@ func main() {
 			}
 		}()
 		if conf.Recover {
+			fmt.Println("wewasdasdasdsa11111qerqw")
 			if err := memStore.ReadDump(); err != nil {
 				log.Error().Err(err).Msg("")
+				fmt.Println("wewqerqw")
 			}
+			fmt.Println("wewqerqw123123123123")
+			fmt.Println(memStore)
 		}
 	}
 	router := chi.NewRouter()

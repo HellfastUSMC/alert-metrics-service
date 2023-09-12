@@ -42,72 +42,123 @@ func (pg *PGSQLConn) Close() error {
 func (pg *PGSQLConn) Ping() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	err := pg.DBConn.PingContext(ctx)
-	if err != nil {
-		var netErr net.Error
-		if errors.As(err, &netErr) {
-			pg.Logger.Error().Err(err).Msg("Can't connect to DB server, trying again")
-			time.Sleep(time.Second * 1)
-			for n := 0; n < 3; n++ {
-				err = pg.DBConn.PingContext(ctx)
-				if err != nil {
-					pg.Logger.Error().Err(err).Msg(fmt.Sprintf("Tried to connect %d times, no luck", n+1))
-				} else {
-					return nil
-				}
-				if n != 2 {
-					time.Sleep(time.Second * 2)
-				}
-			}
-		}
-		pg.Logger.Error().Err(err).Msg("Can't connect to DB, returning")
-		return err
-	}
-	return nil
-}
-
-func (pg *PGSQLConn) createTable() error {
-	goose.SetBaseFS(embedMigrations)
-
-	if err := goose.SetDialect("postgres"); err != nil {
-		return err
-	}
-	if err := goose.Up(pg.DBConn, "migrations"); err != nil {
-		return err
-	}
-	return nil
-}
-
-// CheckTable checking table exists, creating table if not
-func (pg *PGSQLConn) CheckTable() error {
-	row := pg.DBConn.QueryRow("SELECT * from Metrics")
-	if row.Err() != nil {
-		pg.Logger.Info().Msg("Table Metrics not found, trying to create table")
-		err := pg.createTable()
-		if err != nil {
-			pg.Logger.Error().Msg("Can't create table")
-			var netErr net.Error
-			if errors.As(err, &netErr) {
-				pg.Logger.Error().Err(err).Msg("Can't connect to DB server, trying again")
-				time.Sleep(time.Second * 1)
-				for n := 0; n < 3; n++ {
-					err = pg.createTable()
-					if err != nil {
-						pg.Logger.Error().Err(err).Msg(fmt.Sprintf("Tried to connect %d times, no luck", n+1))
-					} else {
-						return nil
-					}
-					if n != 1 {
-						time.Sleep(time.Second * 2)
-					}
-				}
-			}
-			pg.Logger.Error().Err(err).Msg("Can't connect to DB, returning")
+	f := func() error {
+		if err := pg.DBConn.PingContext(ctx); err != nil {
 			return err
 		}
-		pg.Logger.Info().Msg("Table Metrics created")
+		return nil
 	}
+	var netErr net.Error
+	_, err := retryFunc(2, 3, nil, f, &netErr)
+	if err != nil {
+		return err
+	}
+	//err := pg.DBConn.PingContext(ctx)
+	//if err != nil {
+	//	var netErr net.Error
+	//	if errors.As(err, &netErr) {
+	//		pg.Logger.Error().Err(err).Msg("Can't connect to DB server, trying again")
+	//		time.Sleep(time.Second * 1)
+	//		for n := 0; n < 3; n++ {
+	//			err = pg.DBConn.PingContext(ctx)
+	//			if err != nil {
+	//				pg.Logger.Error().Err(err).Msg(fmt.Sprintf("Tried to connect %d times, no luck", n+1))
+	//			} else {
+	//				return nil
+	//			}
+	//			if n != 2 {
+	//				time.Sleep(time.Second * 2)
+	//			}
+	//		}
+	//	}
+	//	pg.Logger.Error().Err(err).Msg("Can't connect to DB, returning")
+	//	return err
+	//}
 	return nil
+}
+
+//func (pg *PGSQLConn) createTable() error {
+//	goose.SetBaseFS(embedMigrations)
+//
+//	if err := goose.SetDialect("postgres"); err != nil {
+//		return err
+//	}
+//	if err := goose.Up(pg.DBConn, "migrations"); err != nil {
+//		return err
+//	}
+//	return nil
+//}
+
+// CheckTable checking table exists, creating table if not
+//
+//	func (pg *PGSQLConn) CheckTable() error {
+//		row := pg.DBConn.QueryRow("SELECT * from Metrics")
+//		if row.Err() != nil {
+//			pg.Logger.Info().Msg("Table Metrics not found, trying to create table")
+//			err := pg.createTable()
+//			if err != nil {
+//				pg.Logger.Error().Msg("Can't create table")
+//				var netErr net.Error
+//				if errors.As(err, &netErr) {
+//					pg.Logger.Error().Err(err).Msg("Can't connect to DB server, trying again")
+//					time.Sleep(time.Second * 1)
+//					for n := 0; n < 3; n++ {
+//						err = pg.createTable()
+//						if err != nil {
+//							pg.Logger.Error().Err(err).Msg(fmt.Sprintf("Tried to connect %d times, no luck", n+1))
+//						} else {
+//							return nil
+//						}
+//						if n != 1 {
+//							time.Sleep(time.Second * 2)
+//						}
+//					}
+//				}
+//				pg.Logger.Error().Err(err).Msg("Can't connect to DB, returning")
+//				return err
+//			}
+//			pg.Logger.Info().Msg("Table Metrics created")
+//		}
+//		return nil
+//	}
+
+func retryFunc(interval int, attempts int, readFunc func() (*sql.Rows, error), writeFunc func() error, errorToRetry *net.Error) (*sql.Rows, error) {
+	if errorToRetry == nil {
+		return nil, fmt.Errorf("please provide error to retry to")
+	}
+	if readFunc != nil {
+		rows, err := readFunc()
+		if err != nil {
+			if errors.As(err, errorToRetry) {
+				for i := 0; i < attempts; i++ {
+					time.Sleep(time.Second * time.Duration(interval))
+					rows, err = readFunc()
+					if err == nil {
+						return rows, nil
+					}
+				}
+			}
+			return nil, err
+		}
+		return rows, nil
+	}
+	if writeFunc != nil {
+		err := writeFunc()
+		if err != nil {
+			if errors.As(err, errorToRetry) {
+				for i := 0; i < attempts; i++ {
+					time.Sleep(time.Second * time.Duration(interval))
+					err = writeFunc()
+					if err == nil {
+						return nil, nil
+					}
+				}
+			}
+			return nil, err
+		}
+		return nil, nil
+	}
+	return nil, fmt.Errorf("no func provided")
 }
 func (pg *PGSQLConn) updateMetric(
 	metricType string,
@@ -172,7 +223,7 @@ func (pg *PGSQLConn) createMetric(
 }
 
 func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
-	if err := pg.CheckTable(); err != nil {
+	if err := pg.Ping(); err != nil {
 		return err
 	}
 	store := serverstorage.MemStorage{}
@@ -198,7 +249,6 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 			}
 		}
 	}
-
 	for name, delta := range store.Counter {
 		rows, err := pg.updateMetric(CounterStr, dbTX, ctx, delta, 0, name)
 		if err != nil {
@@ -211,28 +261,39 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 			}
 		}
 	}
-	err = dbTX.Commit()
-	if err != nil {
-		var netErr net.Error
-		if errors.As(err, &netErr) {
-			pg.Logger.Error().Err(err).Msg("Can't connect to DB server, trying again")
-			time.Sleep(time.Second * 1)
-			for n := 0; n < 3; n++ {
-				err = dbTX.Commit()
-				if err != nil {
-					pg.Logger.Error().Err(err).Msg(fmt.Sprintf("Tried to connect %d times, but no luck", n+1))
-				} else {
-					return nil
-				}
-				if n != 1 {
-					time.Sleep(time.Second * 2)
-				}
-			}
+	f := func() error {
+		if err := dbTX.Commit(); err != nil {
+			return err
 		}
-		pg.Logger.Error().Err(err).Msg("Can't commit query to DB, returning")
-		err = dbTX.Rollback()
+		return nil
+	}
+	var netErr net.Error
+	_, err = retryFunc(2, 3, nil, f, &netErr)
+	if err != nil {
 		return err
 	}
+	//err = dbTX.Commit()
+	//if err != nil {
+	//	var netErr net.Error
+	//	if errors.As(err, &netErr) {
+	//		pg.Logger.Error().Err(err).Msg("Can't connect to DB server, trying again")
+	//		time.Sleep(time.Second * 1)
+	//		for n := 0; n < 3; n++ {
+	//			err = dbTX.Commit()
+	//			if err != nil {
+	//				pg.Logger.Error().Err(err).Msg(fmt.Sprintf("Tried to connect %d times, but no luck", n+1))
+	//			} else {
+	//				return nil
+	//			}
+	//			if n != 1 {
+	//				time.Sleep(time.Second * 2)
+	//			}
+	//		}
+	//	}
+	//	pg.Logger.Error().Err(err).Msg("Can't commit query to DB, returning")
+	//	err = dbTX.Rollback()
+	//	return err
+	//}
 	return nil
 }
 
@@ -240,29 +301,38 @@ func (pg *PGSQLConn) ReadDump() ([]string, error) {
 	pg.Logger.Info().Msg("Reading dump from DB")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	rows, err := pg.DBConn.QueryContext(ctx, "SELECT * FROM Metrics;")
-	if err != nil {
-		var netErr net.Error
-		if errors.As(err, &netErr) {
-			pg.Logger.Error().Err(err).Msg("Can't connect to DB server, trying again")
-			time.Sleep(time.Second * 1)
-			for n := 0; n < 3; n++ {
-				rows, err = pg.DBConn.QueryContext(ctx, "SELECT * FROM Metrics;")
-				if err != nil {
-					pg.Logger.Error().Err(err).Msg(fmt.Sprintf("Tried to connect %d times, but no luck", n+1))
-				} else {
-					err = nil
-					break
-				}
-				if n != 1 {
-					time.Sleep(time.Second * 2)
-				}
-			}
-		}
+	var netErr net.Error
+	f := func() (*sql.Rows, error) {
+		rows, err := pg.DBConn.QueryContext(ctx, "SELECT * FROM Metrics;")
 		if err != nil {
 			return nil, err
 		}
+		return rows, nil
 	}
+	rows, err := retryFunc(2, 3, f, nil, &netErr)
+
+	//if err != nil {
+	//	var netErr net.Error
+	//	if errors.As(err, &netErr) {
+	//		pg.Logger.Error().Err(err).Msg("Can't connect to DB server, trying again")
+	//		time.Sleep(time.Second * 1)
+	//		for n := 0; n < 3; n++ {
+	//			rows, err = pg.DBConn.QueryContext(ctx, "SELECT * FROM Metrics;")
+	//			if err != nil {
+	//				pg.Logger.Error().Err(err).Msg(fmt.Sprintf("Tried to connect %d times, but no luck", n+1))
+	//			} else {
+	//				err = nil
+	//				break
+	//			}
+	//			if n != 1 {
+	//				time.Sleep(time.Second * 2)
+	//			}
+	//		}
+	//	}
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
 	err = rows.Err()
 	if err != nil {
 		return nil, err
@@ -274,8 +344,7 @@ func (pg *PGSQLConn) ReadDump() ([]string, error) {
 		value sql.NullFloat64
 	)
 	res := []string{}
-	jsonGStr := `{"Gauge":{`
-	jsonCStr := `"Counter":{`
+	mStore := serverstorage.MemStorage{}
 	for rows.Next() {
 		err := rows.Scan(&name, &mType, &value, &delta)
 		if err != nil {
@@ -283,20 +352,38 @@ func (pg *PGSQLConn) ReadDump() ([]string, error) {
 			return nil, err
 		}
 		if strings.ToUpper(mType) == GaugeStr {
-			val, _ := value.Value()
-			jsonGStr += fmt.Sprintf(`"%s":%f,`, name, val)
-		} else if strings.ToUpper(mType) == CounterStr {
-			del, _ := delta.Value()
-			jsonCStr += fmt.Sprintf(`"%s":%d,`, name, del)
+			mStore.Gauge[name] = serverstorage.Gauge(value.Float64)
 		}
+		if strings.ToUpper(mType) == CounterStr {
+			mStore.Counter[name] = serverstorage.Counter(delta.Int64)
+		}
+		jsonStore, err := json.Marshal(mStore)
+		res := append(res, string(jsonStore))
+		res = append(res, "\n")
 	}
-	jsonGStr = strings.TrimSuffix(jsonGStr, ",")
-	jsonCStr = strings.TrimSuffix(jsonCStr, ",")
-	jsonGStr += "},"
-	jsonCStr += "}"
-	resString := jsonGStr + jsonCStr + "}"
-	res = append(res, resString)
-	res = append(res, "\n")
+	//jsonGStr := `{"Gauge":{`
+	//jsonCStr := `"Counter":{`
+	//for rows.Next() {
+	//	err := rows.Scan(&name, &mType, &value, &delta)
+	//	if err != nil {
+	//		pg.Logger.Error().Err(err).Msg("")
+	//		return nil, err
+	//	}
+	//	if strings.ToUpper(mType) == GaugeStr {
+	//		val, _ := value.Value()
+	//		jsonGStr += fmt.Sprintf(`"%s":%f,`, name, val)
+	//	} else if strings.ToUpper(mType) == CounterStr {
+	//		del, _ := delta.Value()
+	//		jsonCStr += fmt.Sprintf(`"%s":%d,`, name, del)
+	//	}
+	//}
+	//jsonGStr = strings.TrimSuffix(jsonGStr, ",")
+	//jsonCStr = strings.TrimSuffix(jsonCStr, ",")
+	//jsonGStr += "},"
+	//jsonCStr += "}"
+	//resString := jsonGStr + jsonCStr + "}"
+	//res = append(res, resString)
+	//res = append(res, "\n")
 	return res, nil
 }
 
@@ -307,6 +394,13 @@ func (pg *PGSQLConn) GetPath() string {
 func NewConnectionPGSQL(connPath string, logger logger.CLogger) (*PGSQLConn, error) {
 	db, err := sql.Open("pgx", connPath)
 	if err != nil {
+		return nil, err
+	}
+	goose.SetBaseFS(embedMigrations)
+	if err := goose.SetDialect("postgres"); err != nil {
+		return nil, err
+	}
+	if err := goose.Up(db, "migrations"); err != nil {
 		return nil, err
 	}
 	return &PGSQLConn{

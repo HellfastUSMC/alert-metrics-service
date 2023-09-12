@@ -18,24 +18,24 @@ type FileDump struct {
 
 func (fd FileDump) ReadDump() ([]string, error) {
 	_, err := os.Stat(fd.path)
-	if err == nil {
-		file, err := os.OpenFile(fd.path, os.O_RDONLY|os.O_CREATE, 0777)
-		if err != nil {
-			return nil, fmt.Errorf("can't open dump file - %e", err)
-		}
-		scanner := bufio.NewScanner(file)
-		strs := []string{}
-		for scanner.Scan() {
-			strs = append(strs, scanner.Text())
-		}
-		err = file.Close()
-		if err != nil {
-			return nil, err
-		}
-		return strs, nil
+	if err != nil {
+		log.Info().Msg(fmt.Sprintf("nothing to recieve from file %s", fd.path))
+		return nil, err
 	}
-	log.Info().Msg(fmt.Sprintf("nothing to recieve from file %s", fd.path))
-	return nil, err
+	file, err := os.OpenFile(fd.path, os.O_RDONLY|os.O_CREATE, 0777)
+	if err != nil {
+		return nil, fmt.Errorf("can't open dump file - %e", err)
+	}
+	scanner := bufio.NewScanner(file)
+	strs := []string{}
+	for scanner.Scan() {
+		strs = append(strs, scanner.Text())
+	}
+	err = file.Close()
+	if err != nil {
+		return nil, err
+	}
+	return strs, nil
 }
 
 func (fd FileDump) WriteDump(jsonMemStore []byte) error {
