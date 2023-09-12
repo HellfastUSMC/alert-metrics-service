@@ -239,7 +239,11 @@ func (c *serverController) getMetrics(res http.ResponseWriter, req *http.Request
 	res.WriteHeader(http.StatusOK)
 }
 
-func NewServerController(logger logger.CLogger, conf *config.SysConfig, mStore *serverstorage.MemStorage) *serverController {
+func NewServerController(
+	logger logger.CLogger,
+	conf *config.SysConfig,
+	mStore *serverstorage.MemStorage,
+) *serverController {
 	return &serverController{
 		Logger:   logger,
 		Config:   conf,

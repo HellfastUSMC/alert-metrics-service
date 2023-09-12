@@ -49,17 +49,23 @@ func (pg *PGSQLConn) Ping() error {
 		return nil
 	}
 	var netErr net.Error
-	rows, err := retryFunc(2, 3, nil, f, &netErr)
+	_, err := retryFunc(2, 3, nil, f, &netErr)
 	if err != nil {
 		return err
 	}
-	if rows.Err() != nil {
-		return err
-	}
+	//if rows.Err() != nil {
+	//	return err
+	//} Линтер требует проверить rows.Err() но в этом случае я точно знаю что мне возвращается nil, как правильно это обойти?
 	return nil
 }
 
-func retryFunc(interval int, attempts int, readFunc func() (*sql.Rows, error), writeFunc func() error, errorToRetry *net.Error) (*sql.Rows, error) {
+func retryFunc(
+	interval int,
+	attempts int,
+	readFunc func() (*sql.Rows, error),
+	writeFunc func() error,
+	errorToRetry *net.Error,
+) (*sql.Rows, error) {
 	if errorToRetry == nil {
 		return nil, fmt.Errorf("please provide error to retry to")
 	}
@@ -205,10 +211,10 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 		return nil
 	}
 	var netErr net.Error
-	rows, err := retryFunc(2, 3, nil, f, &netErr)
-	if rows.Err() != nil {
-		return err
-	}
+	_, err = retryFunc(2, 3, nil, f, &netErr)
+	//if rows.Err() != nil {
+	//	return err
+	//}Линтер требует проверить rows.Err() но в этом случае я точно знаю что мне возвращается nil, как правильно это обойти?
 	if err != nil {
 		return err
 	}

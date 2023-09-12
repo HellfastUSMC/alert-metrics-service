@@ -1,6 +1,7 @@
 package connectors
 
 import (
+	"fmt"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
@@ -9,7 +10,8 @@ import (
 func GetDumper(log logger.CLogger, conf *config.SysConfig) (serverstorage.Dumper, error) {
 	if conf.DBPath != "" {
 		dumper, err := NewConnectionPGSQL(conf.DBPath, log)
-		if err != nil || dumper == nil {
+		fmt.Println(dumper)
+		if err != nil {
 			log.Error().Err(err).Msg("error in creating new SQL connection")
 			return nil, err
 		}

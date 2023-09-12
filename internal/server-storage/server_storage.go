@@ -84,7 +84,8 @@ func (m *MemStorage) Ping() error {
 		}
 		return nil
 	}
-	return fmt.Errorf("dumper is nil")
+	return fmt.Errorf("there's no dumpers avaliable")
+
 }
 
 func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue interface{}) error {
