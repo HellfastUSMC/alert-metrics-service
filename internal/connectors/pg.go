@@ -49,13 +49,13 @@ func (pg *PGSQLConn) Ping() error {
 		return nil
 	}
 	var netErr net.Error
-	_, err := retryFunc(2, 3, nil, f, &netErr)
+	rows, err := retryFunc(2, 3, nil, f, &netErr)
 	if err != nil {
 		return err
 	}
-	//if rows.Err() != nil {
-	//	return err
-	//} Линтер требует проверить rows.Err() но в этом случае я точно знаю что мне возвращается nil, как правильно это обойти?
+	if rows.Err() != nil {
+		return err
+	}
 	return nil
 }
 
@@ -93,13 +93,13 @@ func retryFunc(
 					time.Sleep(time.Second * time.Duration(interval))
 					err = writeFunc()
 					if err == nil {
-						return nil, nil
+						return &sql.Rows{}, nil
 					}
 				}
 			}
 			return nil, err
 		}
-		return nil, nil
+		return &sql.Rows{}, nil
 	}
 	return nil, fmt.Errorf("no func provided")
 }
@@ -211,10 +211,10 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 		return nil
 	}
 	var netErr net.Error
-	_, err = retryFunc(2, 3, nil, f, &netErr)
-	//if rows.Err() != nil {
-	//	return err
-	//}Линтер требует проверить rows.Err() но в этом случае я точно знаю что мне возвращается nil, как правильно это обойти?
+	rows, err := retryFunc(2, 3, nil, f, &netErr)
+	if rows.Err() != nil {
+		return err
+	}
 	if err != nil {
 		return err
 	}
