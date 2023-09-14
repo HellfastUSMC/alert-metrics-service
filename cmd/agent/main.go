@@ -3,35 +3,35 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
-	"net"
+	"net/url"
 	"os"
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/agent-storage"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 	"github.com/rs/zerolog"
 )
 
-func checkErr(errorsToRetry []error, err error) bool {
-	for _, errr := range errorsToRetry {
-		if errors.As(err, &errr) {
+func checkErr(errorsToRetry []any, err error) bool {
+	for _, cErr := range errorsToRetry {
+		if errors.As(err, &cErr) {
 			return true
 		}
 	}
 	return false
 }
 
-func retryFunc(logger logger.CLogger, intervals []int, errorsToRetry []error, function func() error) error {
-	err := function(url)
+func retryFunc(logger logger.CLogger, intervals []int, errorsToRetry []any, function func() error) error {
+	err := function()
 	if err != nil && checkErr(errorsToRetry, err) {
 		for i, interval := range intervals {
-			logger.Info().Msg(fmt.Sprintf("Error %v. Attempt #%d with interval %d", err, i, intervals))
+			logger.Info().Msg(fmt.Sprintf("Error %v. Attempt #%d with interval %ds", err, i, interval))
 			time.Sleep(time.Second * time.Duration(interval))
 			errOK := checkErr(errorsToRetry, err)
 			if errOK {
-				err = function(url)
+				err = function()
 				if err == nil {
 					return nil
 				}
@@ -42,6 +42,11 @@ func retryFunc(logger logger.CLogger, intervals []int, errorsToRetry []error, fu
 }
 
 func main() {
+	var (
+		urlErr     url.Error
+		intervals  = []int{1, 3, 5}
+		errorsList = []any{&urlErr}
+	)
 	log := zerolog.New(os.Stdout).Level(zerolog.InfoLevel)
 	conf, err := config.GetAgentConfigData()
 	if err != nil {
@@ -67,7 +72,6 @@ func main() {
 			<-tickReport.C
 			if err := controller.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {
 				log.Error().Err(err).Msg("Error when sending metrics to server")
-				var netErr net.Error
 				f := func() error {
 					err := controller.SendMetrics("http://" + controller.Config.ServerAddress)
 					if err != nil {
@@ -75,7 +79,8 @@ func main() {
 					}
 					return nil
 				}
-				err = retryFunc(&log, []int{1, 3, 5}, []error{&netErr}, f)
+				err = retryFunc(&log, intervals, errorsList, f)
+				log.Error().Err(err).Msg(fmt.Sprintf("Error after %d retries", len(intervals)+1))
 			}
 		}
 	}()

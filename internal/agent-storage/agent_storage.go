@@ -3,6 +3,7 @@ package agentstorage
 import (
 	"bytes"
 	"compress/flate"
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -129,7 +130,10 @@ func (m *Metric) SendBatchMetrics(hostAndPort string) error {
 	if err != nil {
 		return fmt.Errorf("can't close writer - %w", err)
 	}
-	r, err := http.NewRequest(
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(
+		ctx,
 		http.MethodPost,
 		fmt.Sprintf("%s/updates/", hostAndPort),
 		&buff,
