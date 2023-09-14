@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 	"math/rand"
 	"net/http"
 	"reflect"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 )
 
 type Gauge float64
