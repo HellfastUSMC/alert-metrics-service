@@ -49,21 +49,17 @@ func (pg *PGSQLConn) Ping() error {
 		return nil
 	}
 	var netErr net.Error
-	rows, err := retryFunc(2, 3, nil, f, &netErr)
+	err := retryWriteFunc(2, 3, f, &netErr)
 	if err != nil {
-		return err
-	}
-	if rows.Err() != nil {
 		return err
 	}
 	return nil
 }
 
-func retryFunc(
+func retryReadFunc(
 	interval int,
 	attempts int,
 	readFunc func() (*sql.Rows, error),
-	writeFunc func() error,
 	errorToRetry *net.Error,
 ) (*sql.Rows, error) {
 	if errorToRetry == nil {
@@ -85,6 +81,15 @@ func retryFunc(
 		}
 		return rows, nil
 	}
+	return nil, fmt.Errorf("no read func provided")
+}
+
+func retryWriteFunc(
+	interval int,
+	attempts int,
+	writeFunc func() error,
+	errorToRetry *net.Error,
+) error {
 	if writeFunc != nil {
 		err := writeFunc()
 		if err != nil {
@@ -93,15 +98,15 @@ func retryFunc(
 					time.Sleep(time.Second * time.Duration(interval))
 					err = writeFunc()
 					if err == nil {
-						return &sql.Rows{}, nil
+						return nil
 					}
 				}
 			}
-			return nil, err
+			return err
 		}
-		return &sql.Rows{}, nil
+		return nil
 	}
-	return nil, fmt.Errorf("no func provided")
+	return fmt.Errorf("no write func provided")
 }
 func (pg *PGSQLConn) updateMetric(
 	metricType string,
@@ -211,10 +216,7 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 		return nil
 	}
 	var netErr net.Error
-	rows, err := retryFunc(2, 3, nil, f, &netErr)
-	if rows.Err() != nil {
-		return err
-	}
+	err = retryWriteFunc(2, 3, f, &netErr)
 	if err != nil {
 		return err
 	}
@@ -233,7 +235,7 @@ func (pg *PGSQLConn) ReadDump() ([]string, error) {
 		}
 		return rows, nil
 	}
-	rows, err := retryFunc(2, 3, f, nil, &netErr)
+	rows, err := retryReadFunc(2, 3, f, &netErr)
 	if err != nil {
 		return nil, err
 	}
@@ -277,10 +279,6 @@ func (pg *PGSQLConn) ReadDump() ([]string, error) {
 		return nil, fmt.Errorf("nothing to read from table")
 	}
 	return res, nil
-}
-
-func (pg *PGSQLConn) GetPath() string {
-	return "Metrics table from DB"
 }
 
 func NewConnectionPGSQL(connPath string, logger logger.CLogger) (*PGSQLConn, error) {

@@ -17,7 +17,6 @@ type Counter int64
 type Dumper interface {
 	WriteDump([]byte) error
 	ReadDump() ([]string, error)
-	GetPath() string
 	Ping() error
 }
 
@@ -59,7 +58,7 @@ func (m *MemStorage) ReadDump() error {
 	if err != nil {
 		return fmt.Errorf("can't unmarshal dump file - %e", err)
 	}
-	m.Logger.Info().Msg(fmt.Sprintf("Metrics recieved from %s", m.Dumper.GetPath()))
+	m.Logger.Info().Msg("Metrics received")
 	return nil
 }
 

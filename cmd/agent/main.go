@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 	"net"
 	"os"
 	"time"
@@ -12,6 +13,33 @@ import (
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
 	"github.com/rs/zerolog"
 )
+
+func checkErr(errorsToRetry []error, err error) bool {
+	for _, errr := range errorsToRetry {
+		if errors.As(err, &errr) {
+			return true
+		}
+	}
+	return false
+}
+
+func retryFunc(logger logger.CLogger, intervals []int, errorsToRetry []error, function func() error) error {
+	err := function(url)
+	if err != nil && checkErr(errorsToRetry, err) {
+		for i, interval := range intervals {
+			logger.Info().Msg(fmt.Sprintf("Error %v. Attempt #%d with interval %d", err, i, intervals))
+			time.Sleep(time.Second * time.Duration(interval))
+			errOK := checkErr(errorsToRetry, err)
+			if errOK {
+				err = function(url)
+				if err == nil {
+					return nil
+				}
+			}
+		}
+	}
+	return err
+}
 
 func main() {
 	log := zerolog.New(os.Stdout).Level(zerolog.InfoLevel)
@@ -40,20 +68,14 @@ func main() {
 			if err := controller.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {
 				log.Error().Err(err).Msg("Error when sending metrics to server")
 				var netErr net.Error
-				if errors.As(err, &netErr) {
-					time.Sleep(time.Second * 1)
-					for n := 0; n < 3; n++ {
-						if err := controller.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {
-							log.Error().Err(err).Msg(fmt.Sprintf("Error when sending metrics to server, retry %d", n+1))
-						} else {
-							log.Info().Msg("Metrics batch sent to server")
-						}
-						if n != 2 {
-							time.Sleep(time.Second * 2)
-						}
+				f := func() error {
+					err := controller.SendMetrics("http://" + controller.Config.ServerAddress)
+					if err != nil {
+						return err
 					}
-					log.Error().Msg("Tried 4 times to send request to server")
+					return nil
 				}
+				err = retryFunc(&log, []int{1, 3, 5}, []error{&netErr}, f)
 			}
 		}
 	}()

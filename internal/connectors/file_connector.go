@@ -35,6 +35,7 @@ func (fd FileDump) ReadDump() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	fd.logger.Info().Msg(fmt.Sprintf("Metrics read from - %s", fd.path))
 	return strs, nil
 }
 
@@ -62,10 +63,6 @@ func (fd FileDump) WriteDump(jsonMemStore []byte) error {
 	}
 	log.Info().Msg(fmt.Sprintf("metrics dumped to file %s", fd.path))
 	return nil
-}
-
-func (fd FileDump) GetPath() string {
-	return fd.path
 }
 
 func (fd FileDump) Ping() error {
