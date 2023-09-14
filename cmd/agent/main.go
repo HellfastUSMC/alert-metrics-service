@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -10,36 +9,8 @@ import (
 	"github.com/HellfastUSMC/alert-metrics-service/internal/agent-storage"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
-	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 	"github.com/rs/zerolog"
 )
-
-func checkErr(errorsToRetry []any, err error) bool {
-	for _, cErr := range errorsToRetry {
-		if errors.As(err, &cErr) {
-			return true
-		}
-	}
-	return false
-}
-
-func retryFunc(logger logger.CLogger, intervals []int, errorsToRetry []any, function func() error) error {
-	err := function()
-	if err != nil && checkErr(errorsToRetry, err) {
-		for i, interval := range intervals {
-			logger.Info().Msg(fmt.Sprintf("Error %v. Attempt #%d with interval %ds", err, i, interval))
-			time.Sleep(time.Second * time.Duration(interval))
-			errOK := checkErr(errorsToRetry, err)
-			if errOK {
-				err = function()
-				if err == nil {
-					return nil
-				}
-			}
-		}
-	}
-	return err
-}
 
 func main() {
 	var (
@@ -79,7 +50,7 @@ func main() {
 					}
 					return nil
 				}
-				err = retryFunc(&log, intervals, errorsList, f)
+				err = agentstorage.RetryFunc(&log, intervals, errorsList, f)
 				log.Error().Err(err).Msg(fmt.Sprintf("Error after %d retries", len(intervals)+1))
 			}
 		}

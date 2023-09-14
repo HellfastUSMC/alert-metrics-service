@@ -5,7 +5,9 @@ import (
 	"compress/flate"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 	"math/rand"
 	"net/http"
 	"reflect"
@@ -193,4 +195,31 @@ func NewMetricsStorage() *Metric {
 		PollCount:     0,
 		RandomValue:   0,
 	}
+}
+
+func checkErr(errorsToRetry []any, err error) bool {
+	for _, cErr := range errorsToRetry {
+		if errors.As(err, &cErr) {
+			return true
+		}
+	}
+	return false
+}
+
+func RetryFunc(logger logger.CLogger, intervals []int, errorsToRetry []any, function func() error) error {
+	err := function()
+	if err != nil && checkErr(errorsToRetry, err) {
+		for i, interval := range intervals {
+			logger.Info().Msg(fmt.Sprintf("Error %v. Attempt #%d with interval %ds", err, i, interval))
+			time.Sleep(time.Second * time.Duration(interval))
+			errOK := checkErr(errorsToRetry, err)
+			if errOK {
+				err = function()
+				if err == nil {
+					return nil
+				}
+			}
+		}
+	}
+	return err
 }
