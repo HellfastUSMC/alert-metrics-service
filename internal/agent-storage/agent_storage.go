@@ -133,7 +133,6 @@ func (m *Metric) SendBatchMetrics(key string, hostAndPort string) error {
 	if err != nil {
 		return fmt.Errorf("can't close writer - %w", err)
 	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	r, err := http.NewRequestWithContext(
@@ -152,9 +151,6 @@ func (m *Metric) SendBatchMetrics(key string, hostAndPort string) error {
 	if key != "" {
 		buffHash := bytes.NewBuffer(buff.Bytes())
 		hexHash = make([]byte, 64)
-		if err != nil {
-			return err
-		}
 		h := sha256.New()
 		h.Write(buffHash.Bytes())
 		hex.Encode(hexHash, h.Sum(nil))
@@ -163,11 +159,14 @@ func (m *Metric) SendBatchMetrics(key string, hostAndPort string) error {
 	r.Header.Add("Accept-Encoding", "gzip")
 	r.Header.Add("Content-Encoding", "gzip")
 	r.Header.Add("HashSHA256", string(hexHash))
-	fmt.Println(string(hexHash))
 	client := &http.Client{}
-	_, err = client.Do(r)
+	res, err := client.Do(r)
 	if err != nil {
 		return fmt.Errorf("there's an error in sending request: %w", err)
+	}
+	err = res.Body.Close()
+	if err != nil {
+		return err
 	}
 	return nil
 }
