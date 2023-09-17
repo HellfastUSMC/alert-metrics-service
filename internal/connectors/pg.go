@@ -220,6 +220,7 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 	if err != nil {
 		return err
 	}
+	pg.Logger.Info().Msg("Updated")
 	return nil
 }
 

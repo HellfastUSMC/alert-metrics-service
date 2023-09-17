@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"compress/flate"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math/rand"
 	"net/http"
 	"reflect"
@@ -117,10 +118,7 @@ func (m *Metric) SendBatchMetrics(key string, hostAndPort string) error {
 	if metricsList == nil {
 		return fmt.Errorf("nothing to send, metrics list is empty")
 	}
-	jsonByte, err := json.Marshal(metricsList)
-	if err != nil {
-		return err
-	}
+	jsonByte, _ := json.Marshal(metricsList)
 	var buff bytes.Buffer
 	w, err := flate.NewWriter(&buff, flate.BestCompression)
 	if err != nil {
@@ -131,10 +129,11 @@ func (m *Metric) SendBatchMetrics(key string, hostAndPort string) error {
 	if err != nil {
 		return fmt.Errorf("can't write compress JSON in gzip - %w", err)
 	}
-
+	err = w.Close()
 	if err != nil {
 		return fmt.Errorf("can't close writer - %w", err)
 	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	r, err := http.NewRequestWithContext(
@@ -149,35 +148,26 @@ func (m *Metric) SendBatchMetrics(key string, hostAndPort string) error {
 			err,
 		)
 	}
-	//if key != "" {
-	//	h := sha256.New()
-	//	buffBytes := make([]byte, buff.Len())
-	//	_, err = buff.Read(buffBytes)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	fmt.Println(buffBytes, buff.Bytes(), string(jsonByte))
-	//	h.Write(buffBytes)
-	//	hexHash := make([]byte, 64)
-	//	hex.Encode(hexHash, h.Sum(nil))
-	//	fmt.Println(string(hexHash))
-	//	r.Header.Add("HashSHA256", string(hexHash))
-	//}
-	err = w.Close()
+	var hexHash []byte
+	if key != "" {
+		buffHash := bytes.NewBuffer(buff.Bytes())
+		hexHash = make([]byte, 64)
+		if err != nil {
+			return err
+		}
+		h := sha256.New()
+		h.Write(buffHash.Bytes())
+		hex.Encode(hexHash, h.Sum(nil))
+	}
 	r.Header.Add("Content-Type", "application/json")
 	r.Header.Add("Accept-Encoding", "gzip")
 	r.Header.Add("Content-Encoding", "gzip")
-
-	client := &http.Client{Timeout: time.Second * 2}
-	res, err := client.Do(r)
+	r.Header.Add("HashSHA256", string(hexHash))
+	fmt.Println(string(hexHash))
+	client := &http.Client{}
+	_, err = client.Do(r)
 	if err != nil {
 		return fmt.Errorf("there's an error in sending request: %w", err)
-	}
-	b, _ := io.ReadAll(res.Body)
-	fmt.Println(string(b), res.StatusCode)
-	err = res.Body.Close()
-	if err != nil {
-		return fmt.Errorf("error in closing res body - %w", err)
 	}
 	return nil
 }

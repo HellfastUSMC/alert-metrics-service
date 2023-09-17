@@ -270,8 +270,8 @@ func (c *serverController) pingDB(res http.ResponseWriter, _ *http.Request) {
 
 func (c *serverController) Route() *chi.Mux {
 	router := chi.NewRouter()
-	//router.Use(middlewares.ReqResLogging(c.Logger))
 	router.Use(middlewares.Gzip(c.Logger))
+	router.Use(middlewares.ReqResLogging(c.Logger))
 	router.Use(middlewares.CheckHash(c.Logger))
 	router.Route("/", func(router chi.Router) {
 		router.Get("/", c.getAllStats)
