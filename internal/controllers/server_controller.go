@@ -253,6 +253,15 @@ func (c *serverController) getJSONMetricsBatch(res http.ResponseWriter, req *htt
 	}
 }
 
+func (c *serverController) pingDB(res http.ResponseWriter, _ *http.Request) {
+	err := c.MemStore.Ping()
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+	} else {
+		res.WriteHeader(http.StatusOK)
+	}
+}
+
 func (c *serverController) Route() *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middlewares.CheckHash(c.Logger))
@@ -260,6 +269,7 @@ func (c *serverController) Route() *chi.Mux {
 	router.Use(middlewares.ReqResLogging(c.Logger))
 	router.Route("/", func(router chi.Router) {
 		router.Get("/", c.getAllStats)
+		router.Get("/ping", c.pingDB)
 		router.Post("/value/", c.returnJSONMetric)
 		router.Post("/update/", c.getJSONMetrics)
 		router.Post("/updates/", c.getJSONMetricsBatch)
