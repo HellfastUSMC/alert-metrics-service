@@ -3,15 +3,19 @@ package agentstorage
 import (
 	"bytes"
 	"compress/flate"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"reflect"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 )
 
 type Gauge float64
@@ -87,11 +91,12 @@ func (m *Metric) RenewMetrics() {
 	m.RandomValue = Gauge(rand.Float64())
 }
 
-func (m *Metric) SendMetrics(hostAndPort string) error {
+func (m *Metric) SendBatchMetrics(hostAndPort string) error {
 	fieldsValues := reflect.ValueOf(m).Elem()
 	fieldsTypes := reflect.TypeOf(m).Elem()
+	var metricsList []controllers.Metrics
+	var fieldType string
 	for i := 0; i < fieldsValues.NumField(); i++ {
-		var fieldType string
 		if strings.Contains(strings.ToUpper(fieldsTypes.Field(i).Type.String()), gaugeStr) {
 			fieldType = strings.ToLower(gaugeStr)
 		}
@@ -106,54 +111,54 @@ func (m *Metric) SendMetrics(hostAndPort string) error {
 			intVal := fieldsValues.Field(i).Int()
 			metricStruct.Delta = &intVal
 		}
+		metricsList = append(metricsList, metricStruct)
+	}
+	if metricsList == nil {
+		return fmt.Errorf("nothing to send, metrics list is empty")
+	}
+	jsonByte, _ := json.Marshal(metricsList)
+	var buff bytes.Buffer
+	w, err := flate.NewWriter(&buff, flate.BestCompression)
+	if err != nil {
+		return fmt.Errorf("can't create new writer - %w", err)
+	}
 
-		jsonVal, err := json.Marshal(metricStruct)
-		if err != nil {
-			return fmt.Errorf("there's an error in marshalling JSON %e", err)
-		}
+	_, err = w.Write(jsonByte)
+	if err != nil {
+		return fmt.Errorf("can't write compress JSON in gzip - %w", err)
+	}
 
-		var buff bytes.Buffer
-		w, err := flate.NewWriter(&buff, flate.BestCompression)
-		if err != nil {
-			return fmt.Errorf("can't create new writer - %e", err)
-		}
-
-		_, err = w.Write(jsonVal)
-		if err != nil {
-			return fmt.Errorf("can't write compress JSON in gzip - %e", err)
-		}
-
-		err = w.Close()
-		if err != nil {
-			return fmt.Errorf("can't close writer - %e", err)
-		}
-		r, err := http.NewRequest(
-			http.MethodPost,
-			fmt.Sprintf("%s/update/", hostAndPort),
-			&buff,
+	err = w.Close()
+	if err != nil {
+		return fmt.Errorf("can't close writer - %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		fmt.Sprintf("%s/updates/", hostAndPort),
+		&buff,
+	)
+	if err != nil {
+		return fmt.Errorf("there's an error in creating send metric request: type - %s, error - %w",
+			fieldType,
+			err,
 		)
-		if err != nil {
-			return fmt.Errorf("there's an error in creating send metric request: type - %s, name - %s, value - %v, error - %e",
-				fieldType,
-				fieldsTypes.Field(i).Name,
-				fieldsValues.Field(i),
-				err,
-			)
-		}
-		r.Header.Add("Content-Type", "application/json")
-		r.Header.Add("Accept-Encoding", "gzip")
-		r.Header.Add("Content-Encoding", "gzip")
+	}
+	r.Header.Add("Content-Type", "application/json")
+	r.Header.Add("Accept-Encoding", "gzip")
+	r.Header.Add("Content-Encoding", "gzip")
 
-		client := &http.Client{}
-		res, err := client.Do(r)
-		if err != nil {
-			return fmt.Errorf("there's an error in sending request: %e", err)
-		}
+	client := &http.Client{Timeout: time.Second * 2}
+	res, err := client.Do(r)
+	if err != nil {
+		return fmt.Errorf("there's an error in sending request: %w", err)
+	}
 
-		err = res.Body.Close()
-		if err != nil {
-			return fmt.Errorf("error in closing res body - %e", err)
-		}
+	err = res.Body.Close()
+	if err != nil {
+		return fmt.Errorf("error in closing res body - %w", err)
 	}
 	return nil
 }
@@ -190,4 +195,31 @@ func NewMetricsStorage() *Metric {
 		PollCount:     0,
 		RandomValue:   0,
 	}
+}
+
+func checkErr(errorsToRetry []any, err error) bool {
+	for _, cErr := range errorsToRetry {
+		if errors.As(err, &cErr) {
+			return true
+		}
+	}
+	return false
+}
+
+func RetryFunc(logger logger.CLogger, intervals []int, errorsToRetry []any, function func() error) error {
+	err := function()
+	if err != nil && checkErr(errorsToRetry, err) {
+		for i, interval := range intervals {
+			logger.Info().Msg(fmt.Sprintf("Error %v. Attempt #%d with interval %ds", err, i, interval))
+			time.Sleep(time.Second * time.Duration(interval))
+			errOK := checkErr(errorsToRetry, err)
+			if errOK {
+				err = function()
+				if err == nil {
+					return nil
+				}
+			}
+		}
+	}
+	return err
 }

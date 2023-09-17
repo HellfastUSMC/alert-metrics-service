@@ -17,7 +17,7 @@ type Counter int64
 type Dumper interface {
 	WriteDump([]byte) error
 	ReadDump() ([]string, error)
-	GetPath() string
+	Ping() error
 }
 
 type MemStorage struct {
@@ -38,6 +38,7 @@ type MemStorekeeper interface {
 	SetMetric(metricType string, metricName string, metricValue interface{}) error
 	GetValueByName(metricType string, metricName string) (string, error)
 	GetAllData() string
+	Ping() error
 }
 
 type UpdateParse struct {
@@ -57,7 +58,7 @@ func (m *MemStorage) ReadDump() error {
 	if err != nil {
 		return fmt.Errorf("can't unmarshal dump file - %e", err)
 	}
-	m.Logger.Info().Msg(fmt.Sprintf("metrics recieved from file %s", m.Dumper.GetPath()))
+	m.Logger.Info().Msg("Metrics received")
 	return nil
 }
 
@@ -70,9 +71,20 @@ func (m *MemStorage) WriteDump() error {
 	}
 	err = m.Dumper.WriteDump(jsonMemStore)
 	if err != nil {
-		return fmt.Errorf("can't write dump data to file - %e", err)
+		return fmt.Errorf("can't write dump data - %v", err)
 	}
 	return nil
+}
+
+func (m *MemStorage) Ping() error {
+	if m.Dumper != nil {
+		if err := m.Dumper.Ping(); err != nil {
+			return err
+		}
+		return nil
+	}
+	return fmt.Errorf("there's no dumpers avaliable")
+
 }
 
 func (m *MemStorage) SetMetric(metricType string, metricName string, metricValue interface{}) error {

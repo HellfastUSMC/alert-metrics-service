@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/connectors"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/middlewares"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
@@ -20,6 +21,39 @@ type serverController struct {
 	Logger   logger.CLogger
 	Config   *config.SysConfig
 	MemStore serverstorage.MemStorekeeper
+	DB       *connectors.PGSQLConn
+}
+
+func (c *serverController) getJSONMetricsBatch(res http.ResponseWriter, req *http.Request) {
+	updateMetrics := []Metrics{}
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(res, "can't read request body", http.StatusInternalServerError)
+		return
+	}
+	err = json.Unmarshal(body, &updateMetrics)
+	if err != nil {
+		http.Error(res, "can't unmarshal json", http.StatusInternalServerError)
+	}
+	for _, metric := range updateMetrics {
+		if strings.ToUpper(metric.MType) == GaugeStr {
+			if err := c.MemStore.SetMetric(metric.MType, metric.ID, metric.Value); err != nil {
+				http.Error(
+					res,
+					fmt.Sprintf("error occured when set metric - %v", err),
+					http.StatusInternalServerError,
+				)
+			}
+		} else {
+			if err := c.MemStore.SetMetric(metric.MType, metric.ID, metric.Delta); err != nil {
+				http.Error(
+					res,
+					fmt.Sprintf("error occured when set metric - %v", err),
+					http.StatusInternalServerError,
+				)
+			}
+		}
+	}
 }
 
 func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.Request) {
@@ -41,22 +75,22 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 	val, err := c.MemStore.GetValueByName(updateMetric.MType, updateMetric.ID)
 	if err != nil {
 		c.Logger.Error().Err(err).Msg("error of GetValueByName ")
-		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusNotFound)
+		http.Error(res, fmt.Sprintf("there's an error %v", err), http.StatusNotFound)
 		return
 	}
 	if strings.ToUpper(updateMetric.MType) == GaugeStr {
 		flVal, err := strconv.ParseFloat(val, 64)
 		if err != nil {
-			c.Logger.Error().Err(err)
-			http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
+			c.Logger.Error().Err(err).Msg("")
+			http.Error(res, fmt.Sprintf("there's an error %v", err), http.StatusInternalServerError)
 			return
 		}
 		updateMetric.Value = &flVal
 	} else if strings.ToUpper(updateMetric.MType) == CounterStr {
 		intVal, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			c.Logger.Error().Err(err)
-			http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
+			c.Logger.Error().Err(err).Msg("")
+			http.Error(res, fmt.Sprintf("there's an error %v", err), http.StatusInternalServerError)
 			return
 		}
 		updateMetric.Delta = &intVal
@@ -70,8 +104,8 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
 	res.WriteHeader(http.StatusOK)
 	if _, err = res.Write(jsonData); err != nil {
-		c.Logger.Error().Err(err)
-		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
+		c.Logger.Error().Err(err).Msg("")
+		http.Error(res, fmt.Sprintf("there's an error %v", err), http.StatusInternalServerError)
 		return
 	}
 }
@@ -101,7 +135,7 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 			c.Logger.Error().Err(err).Msg("error of SetMetric")
 			http.Error(
 				res,
-				fmt.Sprintf("Error occurred when setting metric - %e", err),
+				fmt.Sprintf("Error occurred when setting metric - %v", err),
 				http.StatusInternalServerError,
 			)
 			return
@@ -114,7 +148,7 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 			c.Logger.Error().Err(err).Msg("error of SetMetric")
 			http.Error(
 				res,
-				fmt.Sprintf("Error occurred when setting metric - %e", err),
+				fmt.Sprintf("Error occurred when setting metric - %v", err),
 				http.StatusInternalServerError,
 			)
 			return
@@ -138,8 +172,8 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
 	res.WriteHeader(http.StatusOK)
 	if _, err = res.Write(jsonData); err != nil {
-		c.Logger.Error().Err(err)
-		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
+		c.Logger.Error().Err(err).Msg("")
+		http.Error(res, fmt.Sprintf("there's an error %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -157,13 +191,13 @@ func (c *serverController) returnMetric(res http.ResponseWriter, req *http.Reque
 	val, err := c.MemStore.GetValueByName(updateURL.MetricType, updateURL.MetricName)
 	if err != nil {
 		c.Logger.Error().Err(err).Msg("error of GetValueByName ")
-		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusNotFound)
+		http.Error(res, fmt.Sprintf("there's an error %v", err), http.StatusNotFound)
 	}
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	res.Header().Add("Date", time.Now().Format(http.TimeFormat))
 	res.WriteHeader(http.StatusOK)
 	if _, err = res.Write([]byte(val)); err != nil {
-		c.Logger.Error().Err(err)
+		c.Logger.Error().Err(err).Msg("")
 	}
 }
 
@@ -195,7 +229,7 @@ func (c *serverController) getMetrics(res http.ResponseWriter, req *http.Request
 		c.Logger.Error().Err(err).Msg("error of SetMetric")
 		http.Error(
 			res,
-			fmt.Sprintf("Error occurred when converting to float64 or int64 - %e", err),
+			fmt.Sprintf("Error occurred when converting to float64 or int64 - %v", err),
 			http.StatusInternalServerError,
 		)
 		return
@@ -205,7 +239,11 @@ func (c *serverController) getMetrics(res http.ResponseWriter, req *http.Request
 	res.WriteHeader(http.StatusOK)
 }
 
-func NewServerController(logger logger.CLogger, conf *config.SysConfig, mStore *serverstorage.MemStorage) *serverController {
+func NewServerController(
+	logger logger.CLogger,
+	conf *config.SysConfig,
+	mStore *serverstorage.MemStorage,
+) *serverController {
 	return &serverController{
 		Logger:   logger,
 		Config:   conf,
@@ -217,7 +255,16 @@ func (c *serverController) getAllStats(res http.ResponseWriter, _ *http.Request)
 	allStats := c.MemStore.GetAllData()
 	res.Header().Add("Content-Type", "text/html")
 	if _, err := res.Write([]byte(allStats)); err != nil {
-		c.Logger.Error().Err(err)
+		c.Logger.Error().Err(err).Msg("")
+	}
+}
+
+func (c *serverController) pingDB(res http.ResponseWriter, _ *http.Request) {
+	err := c.MemStore.Ping()
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+	} else {
+		res.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -227,8 +274,10 @@ func (c *serverController) Route() *chi.Mux {
 	router.Use(middlewares.Gzip(c.Logger))
 	router.Route("/", func(router chi.Router) {
 		router.Get("/", c.getAllStats)
+		router.Get("/ping", c.pingDB)
 		router.Post("/value/", c.returnJSONMetric)
 		router.Post("/update/", c.getJSONMetrics)
+		router.Post("/updates/", c.getJSONMetricsBatch)
 		router.Get("/value/{metricType}/{metricName}", c.returnMetric)
 		router.Post("/update/{metricType}/{metricName}/{metricValue}", c.getMetrics)
 	})

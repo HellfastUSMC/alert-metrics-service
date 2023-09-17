@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"time"
 
@@ -12,6 +13,11 @@ import (
 )
 
 func main() {
+	var (
+		urlErr     url.Error
+		intervals  = []int{1, 3, 5}
+		errorsList = []any{&urlErr}
+	)
 	log := zerolog.New(os.Stdout).Level(zerolog.InfoLevel)
 	conf, err := config.GetAgentConfigData()
 	if err != nil {
@@ -36,7 +42,16 @@ func main() {
 		for {
 			<-tickReport.C
 			if err := controller.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {
-				log.Error().Err(err)
+				log.Error().Err(err).Msg("Error when sending metrics to server")
+				f := func() error {
+					err := controller.SendMetrics("http://" + controller.Config.ServerAddress)
+					if err != nil {
+						return err
+					}
+					return nil
+				}
+				err = agentstorage.RetryFunc(&log, intervals, errorsList, f)
+				log.Error().Err(err).Msg(fmt.Sprintf("Error after %d retries", len(intervals)+1))
 			}
 		}
 	}()
