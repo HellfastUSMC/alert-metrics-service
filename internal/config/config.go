@@ -15,6 +15,7 @@ type SysConfig struct {
 	DumpPath       string `env:"FILE_STORAGE_PATH"`
 	Recover        bool   `env:"RESTORE"`
 	DBPath         string `env:"DATABASE_DSN"`
+	Key            string `env:"KEY"`
 }
 
 func (c *SysConfig) ParseServerFlags() error {
@@ -29,6 +30,7 @@ func (c *SysConfig) ParseServerFlags() error {
 		"",
 		"DB connection string",
 	)
+	serverFlags.StringVar(&c.Key, "k", "", "Hash key string")
 	if err := serverFlags.Parse(os.Args[1:]); err != nil {
 		os.Exit(1)
 		return err
@@ -41,6 +43,7 @@ func (c *SysConfig) ParseAgentFlags() error {
 	agentFlags.StringVar(&c.ServerAddress, "a", "localhost:8080", "Address and port of server")
 	agentFlags.Int64Var(&c.ReportInterval, "r", 2, "Report interval in seconds")
 	agentFlags.Int64Var(&c.PollInterval, "p", 10, "Metric poll interval in seconds")
+	agentFlags.StringVar(&c.Key, "k", "", "Hash key string")
 	if err := agentFlags.Parse(os.Args[1:]); err != nil {
 		os.Exit(1)
 		return err

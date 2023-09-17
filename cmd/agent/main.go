@@ -41,10 +41,10 @@ func main() {
 	go func() {
 		for {
 			<-tickReport.C
-			if err := controller.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {
+			if err := controller.SendMetrics(conf.Key, "http://"+controller.Config.ServerAddress); err != nil {
 				log.Error().Err(err).Msg("Error when sending metrics to server")
 				f := func() error {
-					err := controller.SendMetrics("http://" + controller.Config.ServerAddress)
+					err := controller.SendMetrics(conf.Key, "http://"+controller.Config.ServerAddress)
 					if err != nil {
 						return err
 					}

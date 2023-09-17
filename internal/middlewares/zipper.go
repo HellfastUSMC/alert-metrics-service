@@ -51,7 +51,7 @@ func Gzip(log logger.CLogger) func(h http.Handler) http.Handler {
 				gz, err := gzip.NewWriterLevel(res, gzip.BestSpeed)
 
 				if err != nil {
-					log.Error().Err(err)
+					log.Error().Err(err).Msg("")
 					http.Error(res, "can't compress to gzip", http.StatusInternalServerError)
 					return
 				}

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"reflect"
@@ -91,7 +92,7 @@ func (m *Metric) RenewMetrics() {
 	m.RandomValue = Gauge(rand.Float64())
 }
 
-func (m *Metric) SendBatchMetrics(hostAndPort string) error {
+func (m *Metric) SendBatchMetrics(key string, hostAndPort string) error {
 	fieldsValues := reflect.ValueOf(m).Elem()
 	fieldsTypes := reflect.TypeOf(m).Elem()
 	var metricsList []controllers.Metrics
@@ -116,7 +117,10 @@ func (m *Metric) SendBatchMetrics(hostAndPort string) error {
 	if metricsList == nil {
 		return fmt.Errorf("nothing to send, metrics list is empty")
 	}
-	jsonByte, _ := json.Marshal(metricsList)
+	jsonByte, err := json.Marshal(metricsList)
+	if err != nil {
+		return err
+	}
 	var buff bytes.Buffer
 	w, err := flate.NewWriter(&buff, flate.BestCompression)
 	if err != nil {
@@ -128,7 +132,6 @@ func (m *Metric) SendBatchMetrics(hostAndPort string) error {
 		return fmt.Errorf("can't write compress JSON in gzip - %w", err)
 	}
 
-	err = w.Close()
 	if err != nil {
 		return fmt.Errorf("can't close writer - %w", err)
 	}
@@ -146,6 +149,21 @@ func (m *Metric) SendBatchMetrics(hostAndPort string) error {
 			err,
 		)
 	}
+	//if key != "" {
+	//	h := sha256.New()
+	//	buffBytes := make([]byte, buff.Len())
+	//	_, err = buff.Read(buffBytes)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	fmt.Println(buffBytes, buff.Bytes(), string(jsonByte))
+	//	h.Write(buffBytes)
+	//	hexHash := make([]byte, 64)
+	//	hex.Encode(hexHash, h.Sum(nil))
+	//	fmt.Println(string(hexHash))
+	//	r.Header.Add("HashSHA256", string(hexHash))
+	//}
+	err = w.Close()
 	r.Header.Add("Content-Type", "application/json")
 	r.Header.Add("Accept-Encoding", "gzip")
 	r.Header.Add("Content-Encoding", "gzip")
@@ -155,7 +173,8 @@ func (m *Metric) SendBatchMetrics(hostAndPort string) error {
 	if err != nil {
 		return fmt.Errorf("there's an error in sending request: %w", err)
 	}
-
+	b, _ := io.ReadAll(res.Body)
+	fmt.Println(string(b), res.StatusCode)
 	err = res.Body.Close()
 	if err != nil {
 		return fmt.Errorf("error in closing res body - %w", err)
