@@ -18,41 +18,46 @@ import (
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 type Gauge float64
 type Counter int64
 
 type Metric struct {
-	Alloc         Gauge
-	BuckHashSys   Gauge
-	Frees         Gauge
-	GCCPUFraction Gauge
-	GCSys         Gauge
-	HeapAlloc     Gauge
-	HeapIdle      Gauge
-	HeapInuse     Gauge
-	HeapObjects   Gauge
-	HeapReleased  Gauge
-	HeapSys       Gauge
-	LastGC        Gauge
-	Lookups       Gauge
-	MCacheInuse   Gauge
-	MCacheSys     Gauge
-	MSpanInuse    Gauge
-	MSpanSys      Gauge
-	Mallocs       Gauge
-	NextGC        Gauge
-	NumForcedGC   Gauge
-	NumGC         Gauge
-	OtherSys      Gauge
-	PauseTotalNs  Gauge
-	StackInuse    Gauge
-	StackSys      Gauge
-	Sys           Gauge
-	TotalAlloc    Gauge
-	PollCount     Counter
-	RandomValue   Gauge
+	Alloc           Gauge
+	BuckHashSys     Gauge
+	Frees           Gauge
+	GCCPUFraction   Gauge
+	GCSys           Gauge
+	HeapAlloc       Gauge
+	HeapIdle        Gauge
+	HeapInuse       Gauge
+	HeapObjects     Gauge
+	HeapReleased    Gauge
+	HeapSys         Gauge
+	LastGC          Gauge
+	Lookups         Gauge
+	MCacheInuse     Gauge
+	MCacheSys       Gauge
+	MSpanInuse      Gauge
+	MSpanSys        Gauge
+	Mallocs         Gauge
+	NextGC          Gauge
+	NumForcedGC     Gauge
+	NumGC           Gauge
+	OtherSys        Gauge
+	PauseTotalNs    Gauge
+	StackInuse      Gauge
+	StackSys        Gauge
+	Sys             Gauge
+	TotalAlloc      Gauge
+	PollCount       Counter
+	RandomValue     Gauge
+	TotalMemory     Gauge
+	FreeMemory      Gauge
+	CPUutilization1 Gauge
 }
 
 const (
@@ -91,6 +96,15 @@ func (m *Metric) RenewMetrics() {
 	m.TotalAlloc = Gauge(memstat.TotalAlloc)
 	m.PollCount += 1
 	m.RandomValue = Gauge(rand.Float64())
+}
+
+func (m *Metric) RenewAdditionalMetrics() {
+	var memstat mem.VirtualMemoryStat
+	var cpustat cpu.TimesStat
+	m.TotalMemory = Gauge(memstat.Total)
+	m.FreeMemory = Gauge(memstat.Free)
+	m.CPUutilization1 = Gauge(cpustat.User)
+
 }
 
 func (m *Metric) SendBatchMetrics(key string, hostAndPort string) error {
