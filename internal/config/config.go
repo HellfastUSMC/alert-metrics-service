@@ -16,6 +16,7 @@ type SysConfig struct {
 	Recover        bool   `env:"RESTORE"`
 	DBPath         string `env:"DATABASE_DSN"`
 	Key            string `env:"KEY"`
+	RateLimit      int64  `env:"RATE_LIMIT"`
 }
 
 func (c *SysConfig) ParseServerFlags() error {
@@ -44,6 +45,7 @@ func (c *SysConfig) ParseAgentFlags() error {
 	agentFlags.Int64Var(&c.ReportInterval, "r", 2, "Report interval in seconds")
 	agentFlags.Int64Var(&c.PollInterval, "p", 10, "Metric poll interval in seconds")
 	agentFlags.StringVar(&c.Key, "k", "", "Hash key string")
+	agentFlags.Int64Var(&c.RateLimit, "l", 1, "Rate limit int")
 	if err := agentFlags.Parse(os.Args[1:]); err != nil {
 		os.Exit(1)
 		return err

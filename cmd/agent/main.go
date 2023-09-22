@@ -32,6 +32,23 @@ func main() {
 			controller.Config.ReportInterval))
 	tickPoll := time.NewTicker(time.Duration(controller.Config.PollInterval) * time.Second)
 	tickReport := time.NewTicker(time.Duration(controller.Config.ReportInterval) * time.Second)
+
+	sender := func(id int) {
+		controller.Logger.Info().Msg(fmt.Sprintf("Starting worker №%d", id))
+		if err := controller.SendMetrics(conf.Key, "http://"+controller.Config.ServerAddress); err != nil {
+			log.Error().Err(err).Msg("Error when sending metrics to server")
+			f := func() error {
+				err := controller.SendMetrics(conf.Key, "http://"+controller.Config.ServerAddress)
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+			err = agentstorage.RetryFunc(&log, intervals, errorsList, f)
+			log.Error().Err(err).Msg(fmt.Sprintf("Error after %d retries", len(intervals)+1))
+		}
+	}
+
 	go func() {
 		for {
 			<-tickPoll.C
@@ -40,18 +57,15 @@ func main() {
 	}()
 	go func() {
 		for {
+			<-tickPoll.C
+			controller.RenewAdditionalMetrics()
+		}
+	}()
+	go func() {
+		for {
 			<-tickReport.C
-			if err := controller.SendMetrics(conf.Key, "http://"+controller.Config.ServerAddress); err != nil {
-				log.Error().Err(err).Msg("Error when sending metrics to server")
-				f := func() error {
-					err := controller.SendMetrics(conf.Key, "http://"+controller.Config.ServerAddress)
-					if err != nil {
-						return err
-					}
-					return nil
-				}
-				err = agentstorage.RetryFunc(&log, intervals, errorsList, f)
-				log.Error().Err(err).Msg(fmt.Sprintf("Error after %d retries", len(intervals)+1))
+			for i := 0; i < int(conf.RateLimit); i++ {
+				go sender(i)
 			}
 		}
 	}()
