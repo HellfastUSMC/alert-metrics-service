@@ -3,11 +3,11 @@ package middlewares
 import (
 	"bytes"
 	"fmt"
-	"github.com/HellfastUSMC/alert-metrics-service/internal/utils"
 	"io"
 	"net/http"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/utils"
 )
 
 type CHRespWriter struct {
@@ -23,10 +23,6 @@ func CheckHash(log logger.CLogger) func(h http.Handler) http.Handler {
 				if err != nil {
 					log.Error().Err(err).Msg("")
 				}
-				//hash := sha256.New()
-				//hash.Write(body)
-				//hashEncoded := make([]byte, 64)
-				//hex.Encode(hashEncoded, hash.Sum(nil))
 				req.ContentLength = int64(len(body))
 				req.Body = io.NopCloser(bytes.NewBuffer(body))
 
