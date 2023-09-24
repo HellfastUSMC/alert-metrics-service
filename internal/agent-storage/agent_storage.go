@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"compress/flate"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +16,7 @@ import (
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/utils"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
 )
@@ -161,18 +160,15 @@ func (m *Metric) SendBatchMetrics(key string, hostAndPort string) error {
 			err,
 		)
 	}
-	var hexHash []byte
+	hash := utils.NewHasher()
 	if key != "" {
 		buffHash := bytes.NewBuffer(buff.Bytes())
-		hexHash = make([]byte, 64)
-		h := sha256.New()
-		h.Write(buffHash.Bytes())
-		hex.Encode(hexHash, h.Sum(nil))
+		hash.CalcHexHash(buffHash.Bytes())
 	}
 	r.Header.Add("Content-Type", "application/json")
 	r.Header.Add("Accept-Encoding", "gzip")
 	r.Header.Add("Content-Encoding", "gzip")
-	r.Header.Add("HashSHA256", string(hexHash))
+	r.Header.Add("HashSHA256", hash.String())
 	client := &http.Client{}
 	res, err := client.Do(r)
 	if err != nil {
