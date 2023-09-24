@@ -33,7 +33,7 @@ func main() {
 	tickPoll := time.NewTicker(time.Duration(controller.Config.PollInterval) * time.Second)
 	tickReport := time.NewTicker(time.Duration(controller.Config.ReportInterval) * time.Second)
 
-	jobsChan := make(chan int, 0)
+	jobsChan := make(chan int)
 	jobNum := 0
 	sender := func(id int, jobs chan int) {
 		for jNum := range jobs {
