@@ -60,22 +60,22 @@ func main() {
 		go sender(i, jobsChan)
 	}
 
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		for {
 			<-tickPoll.C
 			controller.RenewMetrics()
 		}
 	}()
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		for {
 			<-tickPoll.C
 			controller.RenewMemCPUMetrics()
 		}
 	}()
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		for {
 			<-tickReport.C
 			jobsChan <- jobNum
