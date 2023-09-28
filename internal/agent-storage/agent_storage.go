@@ -97,7 +97,7 @@ func (m *Metric) RenewMetrics() {
 	m.RandomValue = Gauge(rand.Float64())
 }
 
-func (m *Metric) RenewAdditionalMetrics() {
+func (m *Metric) RenewMemCPUMetrics() {
 	var memstat mem.VirtualMemoryStat
 	var cpustat cpu.TimesStat
 	m.TotalMemory = Gauge(memstat.Total)

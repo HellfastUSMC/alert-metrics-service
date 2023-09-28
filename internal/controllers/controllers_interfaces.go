@@ -2,7 +2,7 @@ package controllers
 
 type agentHandler interface {
 	RenewMetrics()
-	RenewAdditionalMetrics()
+	RenewMemCPUMetrics()
 	SendBatchMetrics(key string, URL string) error
 }
 

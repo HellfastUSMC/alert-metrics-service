@@ -33,7 +33,7 @@ func main() {
 	tickPoll := time.NewTicker(time.Duration(controller.Config.PollInterval) * time.Second)
 	tickReport := time.NewTicker(time.Duration(controller.Config.ReportInterval) * time.Second)
 
-	jobsChan := make(chan int)
+	jobsChan := make(chan int, conf.RateLimit)
 	jobNum := 0
 	sender := func(id int, jobs chan int) {
 		for jNum := range jobs {
@@ -66,7 +66,7 @@ func main() {
 	go func() {
 		for {
 			<-tickPoll.C
-			controller.RenewAdditionalMetrics()
+			controller.RenewMemCPUMetrics()
 		}
 	}()
 	go func() {
