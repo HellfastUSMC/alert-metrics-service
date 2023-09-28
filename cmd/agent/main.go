@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/agent-storage"
@@ -35,6 +36,7 @@ func main() {
 
 	jobsChan := make(chan int, conf.RateLimit)
 	jobNum := 0
+	var wg sync.WaitGroup
 	sender := func(id int, jobs chan int) {
 		for jNum := range jobs {
 			controller.Logger.Info().Msg(fmt.Sprintf("Starting worker №%d with job number %d", id, jNum))
@@ -54,26 +56,30 @@ func main() {
 		}
 	}
 	for i := 0; i < int(conf.RateLimit); i++ {
+		wg.Add(1)
 		go sender(i, jobsChan)
 	}
 
 	go func() {
+		wg.Add(1)
 		for {
 			<-tickPoll.C
 			controller.RenewMetrics()
 		}
 	}()
 	go func() {
+		wg.Add(1)
 		for {
 			<-tickPoll.C
 			controller.RenewMemCPUMetrics()
 		}
 	}()
 	go func() {
+		wg.Add(1)
 		for {
 			<-tickReport.C
 			jobsChan <- jobNum
 		}
 	}()
-	select {}
+	wg.Wait()
 }
