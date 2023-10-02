@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/agent-storage"
@@ -32,19 +33,18 @@ func main() {
 			controller.Config.ReportInterval))
 	tickPoll := time.NewTicker(time.Duration(controller.Config.PollInterval) * time.Second)
 	tickReport := time.NewTicker(time.Duration(controller.Config.ReportInterval) * time.Second)
-	go func() {
-		for {
-			<-tickPoll.C
-			controller.RenewMetrics()
-		}
-	}()
-	go func() {
-		for {
-			<-tickReport.C
-			if err := controller.SendMetrics("http://" + controller.Config.ServerAddress); err != nil {
+
+	jobsChan := make(chan int, conf.RateLimit)
+	jobNum := 0
+	var wg sync.WaitGroup
+	sender := func(id int, jobs chan int) {
+		defer wg.Done()
+		for jNum := range jobs {
+			controller.Logger.Info().Msg(fmt.Sprintf("Starting worker №%d with job number %d", id, jNum))
+			if err := controller.SendMetrics(conf.Key, "http://"+controller.Config.ServerAddress); err != nil {
 				log.Error().Err(err).Msg("Error when sending metrics to server")
 				f := func() error {
-					err := controller.SendMetrics("http://" + controller.Config.ServerAddress)
+					err := controller.SendMetrics(conf.Key, "http://"+controller.Config.ServerAddress)
 					if err != nil {
 						return err
 					}
@@ -53,7 +53,34 @@ func main() {
 				err = agentstorage.RetryFunc(&log, intervals, errorsList, f)
 				log.Error().Err(err).Msg(fmt.Sprintf("Error after %d retries", len(intervals)+1))
 			}
+			jobNum += 1
+		}
+	}
+	for i := 0; i < int(conf.RateLimit); i++ {
+		wg.Add(1)
+		go sender(i, jobsChan)
+	}
+
+	wg.Add(1)
+	go func() {
+		for {
+			<-tickPoll.C
+			controller.RenewMetrics()
 		}
 	}()
-	select {}
+	wg.Add(1)
+	go func() {
+		for {
+			<-tickPoll.C
+			controller.RenewMemCPUMetrics()
+		}
+	}()
+	wg.Add(1)
+	go func() {
+		for {
+			<-tickReport.C
+			jobsChan <- jobNum
+		}
+	}()
+	wg.Wait()
 }

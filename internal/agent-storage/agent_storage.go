@@ -16,41 +16,47 @@ import (
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/utils"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 type Gauge float64
 type Counter int64
 
 type Metric struct {
-	Alloc         Gauge
-	BuckHashSys   Gauge
-	Frees         Gauge
-	GCCPUFraction Gauge
-	GCSys         Gauge
-	HeapAlloc     Gauge
-	HeapIdle      Gauge
-	HeapInuse     Gauge
-	HeapObjects   Gauge
-	HeapReleased  Gauge
-	HeapSys       Gauge
-	LastGC        Gauge
-	Lookups       Gauge
-	MCacheInuse   Gauge
-	MCacheSys     Gauge
-	MSpanInuse    Gauge
-	MSpanSys      Gauge
-	Mallocs       Gauge
-	NextGC        Gauge
-	NumForcedGC   Gauge
-	NumGC         Gauge
-	OtherSys      Gauge
-	PauseTotalNs  Gauge
-	StackInuse    Gauge
-	StackSys      Gauge
-	Sys           Gauge
-	TotalAlloc    Gauge
-	PollCount     Counter
-	RandomValue   Gauge
+	Alloc           Gauge
+	BuckHashSys     Gauge
+	Frees           Gauge
+	GCCPUFraction   Gauge
+	GCSys           Gauge
+	HeapAlloc       Gauge
+	HeapIdle        Gauge
+	HeapInuse       Gauge
+	HeapObjects     Gauge
+	HeapReleased    Gauge
+	HeapSys         Gauge
+	LastGC          Gauge
+	Lookups         Gauge
+	MCacheInuse     Gauge
+	MCacheSys       Gauge
+	MSpanInuse      Gauge
+	MSpanSys        Gauge
+	Mallocs         Gauge
+	NextGC          Gauge
+	NumForcedGC     Gauge
+	NumGC           Gauge
+	OtherSys        Gauge
+	PauseTotalNs    Gauge
+	StackInuse      Gauge
+	StackSys        Gauge
+	Sys             Gauge
+	TotalAlloc      Gauge
+	PollCount       Counter
+	RandomValue     Gauge
+	TotalMemory     Gauge
+	FreeMemory      Gauge
+	CPUutilization1 Gauge
 }
 
 const (
@@ -91,7 +97,16 @@ func (m *Metric) RenewMetrics() {
 	m.RandomValue = Gauge(rand.Float64())
 }
 
-func (m *Metric) SendBatchMetrics(hostAndPort string) error {
+func (m *Metric) RenewMemCPUMetrics() {
+	var memstat mem.VirtualMemoryStat
+	var cpustat cpu.TimesStat
+	m.TotalMemory = Gauge(memstat.Total)
+	m.FreeMemory = Gauge(memstat.Free)
+	m.CPUutilization1 = Gauge(cpustat.User)
+
+}
+
+func (m *Metric) SendBatchMetrics(key string, hostAndPort string) error {
 	fieldsValues := reflect.ValueOf(m).Elem()
 	fieldsTypes := reflect.TypeOf(m).Elem()
 	var metricsList []controllers.Metrics
@@ -127,7 +142,6 @@ func (m *Metric) SendBatchMetrics(hostAndPort string) error {
 	if err != nil {
 		return fmt.Errorf("can't write compress JSON in gzip - %w", err)
 	}
-
 	err = w.Close()
 	if err != nil {
 		return fmt.Errorf("can't close writer - %w", err)
@@ -146,19 +160,23 @@ func (m *Metric) SendBatchMetrics(hostAndPort string) error {
 			err,
 		)
 	}
+	hash := utils.NewHasher()
+	if key != "" {
+		buffHash := bytes.NewBuffer(buff.Bytes())
+		hash.CalcHexHash(buffHash.Bytes())
+	}
 	r.Header.Add("Content-Type", "application/json")
 	r.Header.Add("Accept-Encoding", "gzip")
 	r.Header.Add("Content-Encoding", "gzip")
-
-	client := &http.Client{Timeout: time.Second * 2}
+	r.Header.Add("HashSHA256", hash.String())
+	client := &http.Client{}
 	res, err := client.Do(r)
 	if err != nil {
 		return fmt.Errorf("there's an error in sending request: %w", err)
 	}
-
 	err = res.Body.Close()
 	if err != nil {
-		return fmt.Errorf("error in closing res body - %w", err)
+		return err
 	}
 	return nil
 }

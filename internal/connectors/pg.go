@@ -65,23 +65,23 @@ func retryReadFunc(
 	if errorToRetry == nil {
 		return nil, fmt.Errorf("please provide error to retry to")
 	}
-	if readFunc != nil {
-		rows, err := readFunc()
-		if err != nil {
-			if errors.As(err, errorToRetry) {
-				for i := 0; i < attempts; i++ {
-					time.Sleep(time.Second * time.Duration(interval))
-					rows, err = readFunc()
-					if err == nil {
-						return rows, nil
-					}
+	if readFunc == nil {
+		return nil, fmt.Errorf("no read func provided")
+	}
+	rows, err := readFunc()
+	if err != nil {
+		if errors.As(err, errorToRetry) {
+			for i := 0; i < attempts; i++ {
+				time.Sleep(time.Second * time.Duration(interval))
+				rows, err = readFunc()
+				if err == nil {
+					return rows, nil
 				}
 			}
-			return nil, err
 		}
-		return rows, nil
+		return nil, err
 	}
-	return nil, fmt.Errorf("no read func provided")
+	return rows, nil
 }
 
 func retryWriteFunc(
@@ -90,24 +90,28 @@ func retryWriteFunc(
 	writeFunc func() error,
 	errorToRetry *net.Error,
 ) error {
-	if writeFunc != nil {
-		err := writeFunc()
-		if err != nil {
-			if errors.As(err, errorToRetry) {
-				for i := 0; i < attempts; i++ {
-					time.Sleep(time.Second * time.Duration(interval))
-					err = writeFunc()
-					if err == nil {
-						return nil
-					}
+	if errorToRetry == nil {
+		return fmt.Errorf("please provide error to retry to")
+	}
+	if writeFunc == nil {
+		return fmt.Errorf("no write func provided")
+	}
+	err := writeFunc()
+	if err != nil {
+		if errors.As(err, errorToRetry) {
+			for i := 0; i < attempts; i++ {
+				time.Sleep(time.Second * time.Duration(interval))
+				err = writeFunc()
+				if err == nil {
+					return nil
 				}
 			}
-			return err
 		}
-		return nil
+		return err
 	}
-	return fmt.Errorf("no write func provided")
+	return nil
 }
+
 func (pg *PGSQLConn) updateMetric(
 	metricType string,
 	dbTX *sql.Tx,
@@ -220,6 +224,7 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 	if err != nil {
 		return err
 	}
+	pg.Logger.Info().Msg("Updated")
 	return nil
 }
 
