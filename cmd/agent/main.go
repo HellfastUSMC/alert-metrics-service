@@ -38,6 +38,7 @@ func main() {
 	jobNum := 0
 	var wg sync.WaitGroup
 	sender := func(id int, jobs chan int) {
+		defer wg.Done()
 		for jNum := range jobs {
 			controller.Logger.Info().Msg(fmt.Sprintf("Starting worker №%d with job number %d", id, jNum))
 			if err := controller.SendMetrics(conf.Key, "http://"+controller.Config.ServerAddress); err != nil {
