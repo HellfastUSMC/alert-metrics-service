@@ -10,12 +10,14 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// FileDump Структура хранилища метрик в файле
 type FileDump struct {
 	path    string
 	recover bool
 	logger  logger.CLogger
 }
 
+// ReadDump Функция чтения дампа метрик из файла
 func (fd FileDump) ReadDump() ([]string, error) {
 	_, err := os.Stat(fd.path)
 	if err != nil {
@@ -39,6 +41,7 @@ func (fd FileDump) ReadDump() ([]string, error) {
 	return strs, nil
 }
 
+// WriteDump Функция записи дампа метрик в файл
 func (fd FileDump) WriteDump(jsonMemStore []byte) error {
 	pathSliceToFile := strings.Split(fd.path, "/")
 	if len(pathSliceToFile) > 1 {
@@ -65,10 +68,12 @@ func (fd FileDump) WriteDump(jsonMemStore []byte) error {
 	return nil
 }
 
+// Ping Пустая функция для соответствия интерфейсу
 func (fd FileDump) Ping() error {
 	return nil
 }
 
+// NewFileDump Функция инициализации структуры файлового хранилища дампа
 func NewFileDump(filePath string, recover bool, logger logger.CLogger) *FileDump {
 	return &FileDump{
 		path:    filePath,

@@ -7,6 +7,7 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
+// SysConfig Структура конфигурации с указанием названий переменных окружения
 type SysConfig struct {
 	PollInterval   int64  `env:"POLL_INTERVAL"`
 	ReportInterval int64  `env:"REPORT_INTERVAL"`
@@ -19,6 +20,7 @@ type SysConfig struct {
 	RateLimit      int64  `env:"RATE_LIMIT"`
 }
 
+// ParseServerFlags Функция парсинга флагов при запуске сервера
 func (c *SysConfig) ParseServerFlags() error {
 	serverFlags := flag.NewFlagSet("server config", flag.ExitOnError)
 	serverFlags.StringVar(&c.ServerAddress, "a", "localhost:8080", "Address and port of server string")
@@ -39,6 +41,7 @@ func (c *SysConfig) ParseServerFlags() error {
 	return nil
 }
 
+// ParseAgentFlags Функция парсинга флагов при запуске агента
 func (c *SysConfig) ParseAgentFlags() error {
 	agentFlags := flag.NewFlagSet("agent config", flag.ExitOnError)
 	agentFlags.StringVar(&c.ServerAddress, "a", "localhost:8080", "Address and port of server")
@@ -53,11 +56,13 @@ func (c *SysConfig) ParseAgentFlags() error {
 	return nil
 }
 
+// NewConfig Функция инициализации новой структуры конфигурации
 func NewConfig() (*SysConfig, error) {
 	config := SysConfig{}
 	return &config, nil
 }
 
+// GetAgentConfigData Функция парсинга глобальных переменных и флагов для агента
 func GetAgentConfigData() (*SysConfig, error) {
 	conf, err := NewConfig()
 	if err != nil {
@@ -73,6 +78,7 @@ func GetAgentConfigData() (*SysConfig, error) {
 	return conf, nil
 }
 
+// GetServerConfigData Функция парсинга глобальных переменных и флагов для сервера
 func GetServerConfigData() (*SysConfig, error) {
 	conf, err := NewConfig()
 	if err != nil {

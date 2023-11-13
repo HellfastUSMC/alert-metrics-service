@@ -205,6 +205,7 @@ func (c *serverController) getMetrics(res http.ResponseWriter, req *http.Request
 	res.WriteHeader(http.StatusOK)
 }
 
+// NewServerController Функция инициализации нового контролера сервера
 func NewServerController(logger logger.CLogger, conf *config.SysConfig, mStore *serverstorage.MemStorage) *serverController {
 	return &serverController{
 		Logger:   logger,
@@ -262,6 +263,7 @@ func (c *serverController) pingDB(res http.ResponseWriter, _ *http.Request) {
 	}
 }
 
+// Route Функция для создания роутера сервера
 func (c *serverController) Route() *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middlewares.CheckHash(c.Logger))

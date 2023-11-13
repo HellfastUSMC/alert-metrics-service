@@ -6,6 +6,7 @@ import (
 	"github.com/HellfastUSMC/alert-metrics-service/internal/server-storage"
 )
 
+// GetDumper Функция определения используемого дампера
 func GetDumper(log logger.CLogger, conf *config.SysConfig) (serverstorage.Dumper, error) {
 	if conf.DBPath != "" {
 		dumper, err := NewConnectionPGSQL(conf.DBPath, log)

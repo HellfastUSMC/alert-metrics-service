@@ -11,6 +11,7 @@ const (
 	CounterStr = "COUNTER"
 )
 
+// Metrics Структура метрики для преобразований JSON
 type Metrics struct {
 	ID    string   `json:"id"`              // имя метрики
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter

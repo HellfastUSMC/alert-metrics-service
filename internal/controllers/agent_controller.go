@@ -11,6 +11,7 @@ type agentController struct {
 	Storage agentHandler
 }
 
+// NewAgentController Функция инициализации нового контроллера агента
 func NewAgentController(logger logger.CLogger, conf *config.SysConfig, agentHndl agentHandler) *agentController {
 	return &agentController{
 		Logger:  logger,
@@ -19,14 +20,17 @@ func NewAgentController(logger logger.CLogger, conf *config.SysConfig, agentHndl
 	}
 }
 
+// RenewMetrics Функция представитель для обновления метрик
 func (c *agentController) RenewMetrics() {
 	c.Storage.RenewMetrics()
 }
 
+// RenewMemCPUMetrics Функция представитель для обновления дополнительных метрик
 func (c *agentController) RenewMemCPUMetrics() {
 	c.Storage.RenewMemCPUMetrics()
 }
 
+// SendMetrics Функция представитель для отправки метрик
 func (c *agentController) SendMetrics(key string, url string) error {
 	err := c.Storage.SendBatchMetrics(key, url)
 	if err != nil {
