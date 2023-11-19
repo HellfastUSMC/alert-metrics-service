@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -277,6 +278,11 @@ func (c *serverController) Route() *chi.Mux {
 		router.Post("/updates/", c.getJSONMetricsBatch)
 		router.Get("/value/{metricType}/{metricName}", c.returnMetric)
 		router.Post("/update/{metricType}/{metricName}/{metricValue}", c.getMetrics)
+		router.Get("/debug/pprof/", pprof.Index)
+		router.Get("/debug/pprof/cmdline", pprof.Cmdline)
+		router.Get("/debug/pprof/profile", pprof.Profile)
+		router.Get("/debug/pprof/symbol", pprof.Symbol)
+		router.Get("/debug/pprof/trace", pprof.Trace)
 	})
 	return router
 }
