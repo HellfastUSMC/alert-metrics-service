@@ -1,3 +1,4 @@
+// Package logger Пакет логгирования, содержит в себе интерфейс логгера
 package logger
 
 import "github.com/rs/zerolog"

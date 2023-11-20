@@ -85,14 +85,14 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 		return
 	}
 	if err := json.Unmarshal(body, &updateMetric); err != nil {
-		http.Error(res, "can't unmarshal JSON", http.StatusInternalServerError)
+		http.Error(res, fmt.Sprintf("can't unmarshal JSON %v", err), http.StatusInternalServerError)
 		return
 	}
 	if (strings.ToUpper(updateMetric.MType) != GaugeStr &&
 		strings.ToUpper(updateMetric.MType) != CounterStr) ||
 		(updateMetric.Value == nil &&
 			updateMetric.Delta == nil) {
-		http.Error(res, "Wrong metric type or empty value", http.StatusBadRequest)
+		http.Error(res, "Wrong or empty metric type value", http.StatusBadRequest)
 		return
 	}
 
@@ -224,7 +224,7 @@ func (c *serverController) getAllStats(res http.ResponseWriter, _ *http.Request)
 }
 
 func (c *serverController) getJSONMetricsBatch(res http.ResponseWriter, req *http.Request) {
-	updateMetrics := []Metrics{}
+	var updateMetrics []Metrics
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(res, "can't read request body", http.StatusInternalServerError)
@@ -233,6 +233,7 @@ func (c *serverController) getJSONMetricsBatch(res http.ResponseWriter, req *htt
 	err = json.Unmarshal(body, &updateMetrics)
 	if err != nil {
 		http.Error(res, "can't unmarshal json", http.StatusInternalServerError)
+		return
 	}
 	for _, metric := range updateMetrics {
 		if strings.ToUpper(metric.MType) == GaugeStr {
@@ -243,6 +244,7 @@ func (c *serverController) getJSONMetricsBatch(res http.ResponseWriter, req *htt
 					http.StatusInternalServerError,
 				)
 			}
+			return
 		} else {
 			if err := c.MemStore.SetMetric(metric.MType, metric.ID, metric.Delta); err != nil {
 				http.Error(
@@ -250,6 +252,7 @@ func (c *serverController) getJSONMetricsBatch(res http.ResponseWriter, req *htt
 					fmt.Sprintf("error occured when set metric - %v", err),
 					http.StatusInternalServerError,
 				)
+				return
 			}
 		}
 	}

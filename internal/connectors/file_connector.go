@@ -1,3 +1,4 @@
+// Package connectors Пакет коннекторов для различных типов хранения данных, файловое хранилище и БД
 package connectors
 
 import (

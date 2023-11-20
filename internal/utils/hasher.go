@@ -1,3 +1,4 @@
+// Package utils Пакет вспомогательных функций для агента и сервера
 package utils
 
 import (

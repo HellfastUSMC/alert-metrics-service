@@ -7,6 +7,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func BenchmarkMemStorage_SetMetric(b *testing.B) {
+	m := &MemStorage{
+		Gauge:     map[string]Gauge{},
+		PollCount: 0,
+	}
+	b.ResetTimer()
+	if err := m.SetMetric("Gauge", "Name", "100"); err != nil {
+		b.Error(err)
+	}
+}
+
 func TestMemStorage_SetMetric(t *testing.T) {
 	type fields struct {
 		Metrics   map[string]Gauge
@@ -57,6 +68,20 @@ func TestMemStorage_SetMetric(t *testing.T) {
 				t.Errorf("SetMetric() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func BenchmarkMemStorage_GetValueByName(b *testing.B) {
+	m := &MemStorage{
+		Gauge:     map[string]Gauge{},
+		PollCount: 0,
+	}
+	if err := m.SetMetric("Gauge", "Name", "100"); err != nil {
+		b.Error(err)
+	}
+	b.ResetTimer()
+	if _, err := m.GetValueByName("Gauge", "Name"); err != nil {
+		b.Error(err)
 	}
 }
 

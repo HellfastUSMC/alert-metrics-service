@@ -1,3 +1,4 @@
+// Package agentstorage Пакет хранилища агента, определяет типы и структуры метрик, а также создание структуры метрик и операции с ним
 package agentstorage
 
 import (
@@ -27,7 +28,7 @@ type Gauge float64
 // Counter Определение типа Counter для метрик
 type Counter int64
 
-// Metric Определение структуры хранения используемых метрик
+// Metric Определение структуры для хранения используемых метрик
 type Metric struct {
 	Alloc           Gauge
 	BuckHashSys     Gauge
@@ -232,7 +233,7 @@ func checkErr(errorsToRetry []any, err error) bool {
 	return false
 }
 
-// RetryFunc Функция для повторного запуска другой функции в случае определенной ошибки
+// RetryFunc Функция для повторного запуска другой функции в случае возникновения определенной ошибки
 func RetryFunc(logger logger.CLogger, intervals []int, errorsToRetry []any, function func() error) error {
 	err := function()
 	if err != nil && checkErr(errorsToRetry, err) {
