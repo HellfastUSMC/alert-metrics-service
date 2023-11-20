@@ -356,7 +356,11 @@ func Benchmark_returnJSONMetrics(b *testing.B) {
 		b.Error(err)
 	}
 	b.ResetTimer()
-	_, err = client.Do(req)
+	res, err := client.Do(req)
+	if err != nil {
+		b.Error(err)
+	}
+	err = res.Body.Close()
 	if err != nil {
 		b.Error(err)
 	}
@@ -524,7 +528,11 @@ func Benchmark_getJSONMetrics(b *testing.B) {
 		b.Error(err)
 	}
 	b.ResetTimer()
-	_, err = client.Do(req)
+	res, err := client.Do(req)
+	if err != nil {
+		b.Error(err)
+	}
+	err = res.Body.Close()
 	if err != nil {
 		b.Error(err)
 	}
@@ -680,7 +688,11 @@ func Benchmark_getJSONMetricsBatch(b *testing.B) {
 		b.Error(err)
 	}
 	b.ResetTimer()
-	_, err = client.Do(req)
+	res, err := client.Do(req)
+	if err != nil {
+		b.Error(err)
+	}
+	err = res.Body.Close()
 	if err != nil {
 		b.Error(err)
 	}
