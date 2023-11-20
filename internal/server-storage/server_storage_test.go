@@ -128,6 +128,24 @@ func TestMemStorage_GetValueByName(t *testing.T) {
 	}
 }
 
+func BenchmarkMemStorage_GetAllData(b *testing.B) {
+	m := &MemStorage{
+		Gauge: map[string]Gauge{
+			"1": 1,
+			"2": 2,
+			"3": 3,
+		},
+		Counter: map[string]Counter{
+			"1": 1,
+			"2": 2,
+			"3": 3,
+		},
+		PollCount: 100,
+	}
+	b.ResetTimer()
+	m.GetAllData()
+}
+
 func TestMemStorage_GetAllData(t *testing.T) {
 	type fields struct {
 		Gauge     map[string]Gauge
