@@ -20,6 +20,7 @@ import (
 //go:embed migrations/*.sql
 var embedMigrations embed.FS
 
+// PGSQLConn Структура взаимодействия с БД
 type PGSQLConn struct {
 	ConnectionString string
 	DBConn           *sql.DB
@@ -31,6 +32,7 @@ const (
 	CounterStr = "COUNTER"
 )
 
+// Close Функция закрытия соединения с БД
 func (pg *PGSQLConn) Close() error {
 	err := pg.DBConn.Close()
 	if err != nil {
@@ -39,6 +41,7 @@ func (pg *PGSQLConn) Close() error {
 	return nil
 }
 
+// Ping Функция проверки соединения с БД
 func (pg *PGSQLConn) Ping() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -174,6 +177,7 @@ func (pg *PGSQLConn) createMetric(
 	return nil
 }
 
+// WriteDump Функция записи дампа метрик в БД
 func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 	if err := pg.Ping(); err != nil {
 		return err
@@ -228,6 +232,7 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 	return nil
 }
 
+// ReadDump Функция чтения дампа метрик из БД
 func (pg *PGSQLConn) ReadDump() ([]string, error) {
 	pg.Logger.Info().Msg("Reading dump from DB")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
@@ -286,6 +291,7 @@ func (pg *PGSQLConn) ReadDump() ([]string, error) {
 	return res, nil
 }
 
+// NewConnectionPGSQL Функция инициализации новой структуры взаимодействия с БД
 func NewConnectionPGSQL(connPath string, logger logger.CLogger) (*PGSQLConn, error) {
 	db, err := sql.Open("pgx", connPath)
 	if err != nil {

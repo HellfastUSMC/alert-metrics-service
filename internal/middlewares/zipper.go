@@ -16,6 +16,7 @@ type gzipRespWriter struct {
 	Writer io.Writer
 }
 
+// Gzip Мидлварь для сжатия работы с GZIP flate & deflate
 func Gzip(log logger.CLogger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
@@ -69,6 +70,6 @@ func Gzip(log logger.CLogger) func(h http.Handler) http.Handler {
 	}
 }
 
-func (w gzipRespWriter) Write(b []byte) (int, error) {
-	return w.Writer.Write(b)
-}
+//func (w gzipRespWriter) Write(b []byte) (int, error) {
+//	return w.Writer.Write(b)
+//}

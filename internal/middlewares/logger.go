@@ -17,6 +17,7 @@ type logRespWriter struct {
 	http.ResponseWriter
 }
 
+// ReqResLogging Мидлварь для логирования запросов
 func ReqResLogging(log logger.CLogger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(res http.ResponseWriter, r *http.Request) {
@@ -39,13 +40,13 @@ func ReqResLogging(log logger.CLogger) func(h http.Handler) http.Handler {
 	}
 }
 
-func (r *logRespWriter) Write(b []byte) (int, error) {
-	size, err := r.ResponseWriter.Write(b)
-	r.data.size += size
-	return size, err
-}
-
-func (r *logRespWriter) WriteHeader(statusCode int) {
-	r.ResponseWriter.WriteHeader(statusCode)
-	r.data.code = statusCode
-}
+//func (r *logRespWriter) Write(b []byte) (int, error) {
+//	size, err := r.ResponseWriter.Write(b)
+//	r.data.size += size
+//	return size, err
+//}
+//
+//func (r *logRespWriter) WriteHeader(statusCode int) {
+//	r.ResponseWriter.WriteHeader(statusCode)
+//	r.data.code = statusCode
+//}

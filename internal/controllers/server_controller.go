@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -84,14 +85,14 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 		return
 	}
 	if err := json.Unmarshal(body, &updateMetric); err != nil {
-		http.Error(res, "can't unmarshal JSON", http.StatusInternalServerError)
+		http.Error(res, fmt.Sprintf("can't unmarshal JSON %v", err), http.StatusInternalServerError)
 		return
 	}
 	if (strings.ToUpper(updateMetric.MType) != GaugeStr &&
 		strings.ToUpper(updateMetric.MType) != CounterStr) ||
 		(updateMetric.Value == nil &&
 			updateMetric.Delta == nil) {
-		http.Error(res, "Wrong metric type or empty value", http.StatusBadRequest)
+		http.Error(res, "Wrong or empty metric type value", http.StatusBadRequest)
 		return
 	}
 
@@ -205,6 +206,7 @@ func (c *serverController) getMetrics(res http.ResponseWriter, req *http.Request
 	res.WriteHeader(http.StatusOK)
 }
 
+// NewServerController Функция инициализации нового контролера сервера
 func NewServerController(logger logger.CLogger, conf *config.SysConfig, mStore *serverstorage.MemStorage) *serverController {
 	return &serverController{
 		Logger:   logger,
@@ -222,7 +224,7 @@ func (c *serverController) getAllStats(res http.ResponseWriter, _ *http.Request)
 }
 
 func (c *serverController) getJSONMetricsBatch(res http.ResponseWriter, req *http.Request) {
-	updateMetrics := []Metrics{}
+	var updateMetrics []Metrics
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(res, "can't read request body", http.StatusInternalServerError)
@@ -231,6 +233,7 @@ func (c *serverController) getJSONMetricsBatch(res http.ResponseWriter, req *htt
 	err = json.Unmarshal(body, &updateMetrics)
 	if err != nil {
 		http.Error(res, "can't unmarshal json", http.StatusInternalServerError)
+		return
 	}
 	for _, metric := range updateMetrics {
 		if strings.ToUpper(metric.MType) == GaugeStr {
@@ -241,6 +244,7 @@ func (c *serverController) getJSONMetricsBatch(res http.ResponseWriter, req *htt
 					http.StatusInternalServerError,
 				)
 			}
+			return
 		} else {
 			if err := c.MemStore.SetMetric(metric.MType, metric.ID, metric.Delta); err != nil {
 				http.Error(
@@ -248,6 +252,7 @@ func (c *serverController) getJSONMetricsBatch(res http.ResponseWriter, req *htt
 					fmt.Sprintf("error occured when set metric - %v", err),
 					http.StatusInternalServerError,
 				)
+				return
 			}
 		}
 	}
@@ -262,6 +267,7 @@ func (c *serverController) pingDB(res http.ResponseWriter, _ *http.Request) {
 	}
 }
 
+// Route Функция для создания роутера сервера
 func (c *serverController) Route() *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middlewares.CheckHash(c.Logger))
@@ -275,6 +281,11 @@ func (c *serverController) Route() *chi.Mux {
 		router.Post("/updates/", c.getJSONMetricsBatch)
 		router.Get("/value/{metricType}/{metricName}", c.returnMetric)
 		router.Post("/update/{metricType}/{metricName}/{metricValue}", c.getMetrics)
+		router.Get("/debug/pprof/", pprof.Index)
+		router.Get("/debug/pprof/cmdline", pprof.Cmdline)
+		router.Get("/debug/pprof/profile", pprof.Profile)
+		router.Get("/debug/pprof/symbol", pprof.Symbol)
+		router.Get("/debug/pprof/trace", pprof.Trace)
 	})
 	return router
 }

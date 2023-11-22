@@ -1,3 +1,5 @@
+// Package serverstorage Пакет для работы с серверным хранилищем метрик, содержит в себе описание структур и
+// методов работы с ним
 package serverstorage
 
 import (
@@ -11,15 +13,20 @@ import (
 	"github.com/HellfastUSMC/alert-metrics-service/internal/logger"
 )
 
+// Gauge Тип данных для метрик
 type Gauge float64
+
+// Counter Тип данных для метрик
 type Counter int64
 
+// Dumper Интерфейс дампера для описания хранилищ
 type Dumper interface {
 	WriteDump([]byte) error
 	ReadDump() ([]string, error)
 	Ping() error
 }
 
+// MemStorage Структура хранилища метрик для сервера
 type MemStorage struct {
 	Gauge     map[string]Gauge
 	Counter   map[string]Counter
@@ -34,6 +41,7 @@ const (
 	CounterStr = "COUNTER"
 )
 
+// MemStorekeeper Интерфейс для взаимодействия с хранилищем метрик
 type MemStorekeeper interface {
 	SetMetric(metricType string, metricName string, metricValue interface{}) error
 	GetValueByName(metricType string, metricName string) (string, error)
@@ -41,12 +49,14 @@ type MemStorekeeper interface {
 	Ping() error
 }
 
+// UpdateParse Структура для парса метрик из запроса
 type UpdateParse struct {
 	MetricType string
 	MetricName string
 	MetricVal  string
 }
 
+// ReadDump Функция обертка для чтения метрик из дампа
 func (m *MemStorage) ReadDump() error {
 	strs, err := m.Dumper.ReadDump()
 	if err != nil {
@@ -62,6 +72,7 @@ func (m *MemStorage) ReadDump() error {
 	return nil
 }
 
+// WriteDump Функция обертка для записи метрик в дамп
 func (m *MemStorage) WriteDump() error {
 	m.Mutex.Lock()
 	jsonMemStore, err := json.Marshal(m)
@@ -76,6 +87,7 @@ func (m *MemStorage) WriteDump() error {
 	return nil
 }
 
+// Ping Функция обертка для проверки соединения с БД
 func (m *MemStorage) Ping() error {
 	if m.Dumper != nil {
 		if err := m.Dumper.Ping(); err != nil {

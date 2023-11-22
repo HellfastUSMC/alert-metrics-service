@@ -1,3 +1,4 @@
+// Package agentstorage Пакет хранилища агента, определяет типы и структуры метрик, а также создание структуры метрик и операции с ним
 package agentstorage
 
 import (
@@ -21,9 +22,13 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
+// Gauge Определение типа Gauge для метрик
 type Gauge float64
+
+// Counter Определение типа Counter для метрик
 type Counter int64
 
+// Metric Определение структуры для хранения используемых метрик
 type Metric struct {
 	Alloc           Gauge
 	BuckHashSys     Gauge
@@ -64,6 +69,7 @@ const (
 	counterStr = "COUNTER"
 )
 
+// RenewMetrics Функция обновления метрик агента
 func (m *Metric) RenewMetrics() {
 	var memstat runtime.MemStats
 	runtime.ReadMemStats(&memstat)
@@ -97,6 +103,7 @@ func (m *Metric) RenewMetrics() {
 	m.RandomValue = Gauge(rand.Float64())
 }
 
+// RenewMemCPUMetrics Функция обновления дополнительных метрик агента
 func (m *Metric) RenewMemCPUMetrics() {
 	var memstat mem.VirtualMemoryStat
 	var cpustat cpu.TimesStat
@@ -106,6 +113,7 @@ func (m *Metric) RenewMemCPUMetrics() {
 
 }
 
+// SendBatchMetrics Функция отправки метрик на сервер пачкой
 func (m *Metric) SendBatchMetrics(key string, hostAndPort string) error {
 	fieldsValues := reflect.ValueOf(m).Elem()
 	fieldsTypes := reflect.TypeOf(m).Elem()
@@ -181,6 +189,7 @@ func (m *Metric) SendBatchMetrics(key string, hostAndPort string) error {
 	return nil
 }
 
+// NewMetricsStorage Функция инициализации новой структуры хранения метрик
 func NewMetricsStorage() *Metric {
 	return &Metric{
 		Alloc:         0,
@@ -224,6 +233,7 @@ func checkErr(errorsToRetry []any, err error) bool {
 	return false
 }
 
+// RetryFunc Функция для повторного запуска другой функции в случае возникновения определенной ошибки
 func RetryFunc(logger logger.CLogger, intervals []int, errorsToRetry []any, function func() error) error {
 	err := function()
 	if err != nil && checkErr(errorsToRetry, err) {

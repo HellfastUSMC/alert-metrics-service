@@ -1,3 +1,5 @@
+// Package middlewares Пакет мидлварей используемых в работе серверной части приложения - проверка хэша,
+// логгирование запросов, обработка GZip
 package middlewares
 
 import (
@@ -10,10 +12,7 @@ import (
 	"github.com/HellfastUSMC/alert-metrics-service/internal/utils"
 )
 
-type CHRespWriter struct {
-	http.ResponseWriter
-}
-
+// CheckHash Мидлварь для проверки хэша запроса
 func CheckHash(log logger.CLogger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
