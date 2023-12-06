@@ -13,6 +13,12 @@ import (
 	"github.com/rs/zerolog"
 )
 
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
+)
+
 func main() {
 	var (
 		urlErr     url.Error
