@@ -30,7 +30,7 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 		http.Error(res, "Can't read request body", http.StatusInternalServerError)
 		return
 	}
-	if err := json.Unmarshal(body, &updateMetric); err != nil {
+	if err1 := json.Unmarshal(body, &updateMetric); err1 != nil {
 		http.Error(res, "Can't parse JSON", http.StatusInternalServerError)
 		return
 	}
@@ -39,23 +39,23 @@ func (c *serverController) returnJSONMetric(res http.ResponseWriter, req *http.R
 		http.Error(res, "Wrong metric type", http.StatusBadRequest)
 		return
 	}
-	val, err := c.MemStore.GetValueByName(updateMetric.MType, updateMetric.ID)
-	if err != nil {
+	val, err2 := c.MemStore.GetValueByName(updateMetric.MType, updateMetric.ID)
+	if err2 != nil {
 		c.Logger.Error().Err(err).Msg("error of GetValueByName ")
 		http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusNotFound)
 		return
 	}
 	if strings.ToUpper(updateMetric.MType) == GaugeStr {
-		flVal, err := strconv.ParseFloat(val, 64)
-		if err != nil {
+		flVal, err3 := strconv.ParseFloat(val, 64)
+		if err3 != nil {
 			c.Logger.Error().Err(err)
 			http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
 			return
 		}
 		updateMetric.Value = &flVal
 	} else if strings.ToUpper(updateMetric.MType) == CounterStr {
-		intVal, err := strconv.ParseInt(val, 10, 64)
-		if err != nil {
+		intVal, err4 := strconv.ParseInt(val, 10, 64)
+		if err4 != nil {
 			c.Logger.Error().Err(err)
 			http.Error(res, fmt.Sprintf("there's an error %e", err), http.StatusInternalServerError)
 			return
@@ -84,7 +84,7 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 		http.Error(res, "can't read request body", http.StatusInternalServerError)
 		return
 	}
-	if err := json.Unmarshal(body, &updateMetric); err != nil {
+	if err5 := json.Unmarshal(body, &updateMetric); err5 != nil {
 		http.Error(res, fmt.Sprintf("can't unmarshal JSON %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -97,9 +97,9 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 	}
 
 	if strings.ToUpper(updateMetric.MType) == GaugeStr {
-		err := c.MemStore.SetMetric(updateMetric.MType, updateMetric.ID, updateMetric.Value)
-		if err != nil {
-			c.Logger.Error().Err(err).Msg("error of SetMetric")
+		err6 := c.MemStore.SetMetric(updateMetric.MType, updateMetric.ID, updateMetric.Value)
+		if err6 != nil {
+			c.Logger.Error().Err(err6).Msg("error of SetMetric")
 			http.Error(
 				res,
 				fmt.Sprintf("Error occurred when setting metric - %e", err),
@@ -110,9 +110,9 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 	}
 
 	if strings.ToUpper(updateMetric.MType) == CounterStr {
-		err := c.MemStore.SetMetric(updateMetric.MType, updateMetric.ID, updateMetric.Delta)
-		if err != nil {
-			c.Logger.Error().Err(err).Msg("error of SetMetric")
+		err7 := c.MemStore.SetMetric(updateMetric.MType, updateMetric.ID, updateMetric.Delta)
+		if err7 != nil {
+			c.Logger.Error().Err(err7).Msg("error of SetMetric")
 			http.Error(
 				res,
 				fmt.Sprintf("Error occurred when setting metric - %e", err),
@@ -120,18 +120,18 @@ func (c *serverController) getJSONMetrics(res http.ResponseWriter, req *http.Req
 			)
 			return
 		}
-		newMetricVal, err := c.MemStore.GetValueByName(updateMetric.MType, updateMetric.ID)
-		if err != nil {
-			c.Logger.Error().Err(err).Msg("can't get new metric value")
+		newMetricVal, err8 := c.MemStore.GetValueByName(updateMetric.MType, updateMetric.ID)
+		if err8 != nil {
+			c.Logger.Error().Err(err8).Msg("can't get new metric value")
 		}
-		intVal, err := strconv.ParseInt(newMetricVal, 10, 64)
-		if err != nil {
-			c.Logger.Error().Err(err).Msg("can't parse new int64 metric value")
+		intVal, err9 := strconv.ParseInt(newMetricVal, 10, 64)
+		if err9 != nil {
+			c.Logger.Error().Err(err9).Msg("can't parse new int64 metric value")
 		}
 		updateMetric.Delta = &intVal
 	}
-	jsonData, err := json.Marshal(updateMetric)
-	if err != nil {
+	jsonData, err10 := json.Marshal(updateMetric)
+	if err10 != nil {
 		http.Error(res, "can't marshal JSON", http.StatusInternalServerError)
 		return
 	}

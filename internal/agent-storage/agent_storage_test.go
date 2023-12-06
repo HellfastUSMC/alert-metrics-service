@@ -200,8 +200,8 @@ func BenchmarkNewMetricsStorage(b *testing.B) {
 
 func TestNewMetricsStorage(t *testing.T) {
 	tests := []struct {
-		name string
 		want *Metric
+		name string
 	}{
 		{
 			name: "normal behaviour",

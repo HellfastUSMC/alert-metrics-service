@@ -26,9 +26,9 @@ func BenchmarkNewServerController(b *testing.B) {
 
 func TestGetMetrics(t *testing.T) {
 	type args struct {
+		ctrl      *serverController
 		url       string
 		reqMethod string
-		ctrl      *serverController
 	}
 	type want struct {
 		code int
@@ -144,9 +144,9 @@ func TestGetMetrics(t *testing.T) {
 
 func TestGetAllStats(t *testing.T) {
 	type args struct {
+		ctrl      *serverController
 		url       string
 		reqMethod string
-		ctrl      *serverController
 	}
 	type want struct {
 		code int
@@ -233,8 +233,8 @@ func TestReturnMetric(t *testing.T) {
 		metricValue serverstorage.Gauge
 	}
 	type want struct {
-		code     int
 		body     string
+		code     int
 		wantBody bool
 	}
 
@@ -376,8 +376,8 @@ func Test_returnJSONMetric(t *testing.T) {
 		metricType  string
 	}
 	type want struct {
-		code     int
 		body     string
+		code     int
 		wantBody bool
 	}
 
@@ -548,8 +548,8 @@ func Test_getJSONMetrics(t *testing.T) {
 		metricType  string
 	}
 	type want struct {
-		code     int
 		body     string
+		code     int
 		wantBody bool
 	}
 
@@ -709,8 +709,8 @@ func Test_getJSONMetricsBatch(t *testing.T) {
 		metricType  string
 	}
 	type want struct {
-		code     int
 		body     string
+		code     int
 		wantBody bool
 	}
 

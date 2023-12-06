@@ -22,9 +22,9 @@ var embedMigrations embed.FS
 
 // PGSQLConn Структура взаимодействия с БД
 type PGSQLConn struct {
-	ConnectionString string
-	DBConn           *sql.DB
 	Logger           logger.CLogger
+	DBConn           *sql.DB
+	ConnectionString string
 }
 
 const (
@@ -194,8 +194,8 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 	}
 
 	for name, val := range store.Gauge {
-		rows, err := pg.updateMetric(GaugeStr, dbTX, ctx, 0, val, name)
-		if err != nil {
+		rows, err1 := pg.updateMetric(GaugeStr, dbTX, ctx, 0, val, name)
+		if err1 != nil {
 			pg.Logger.Error().Err(err).Msg("")
 		}
 		if rows == 0 {
@@ -206,8 +206,8 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 		}
 	}
 	for name, delta := range store.Counter {
-		rows, err := pg.updateMetric(CounterStr, dbTX, ctx, delta, 0, name)
-		if err != nil {
+		rows, err2 := pg.updateMetric(CounterStr, dbTX, ctx, delta, 0, name)
+		if err2 != nil {
 			pg.Logger.Error().Err(err).Msg("")
 		}
 		if rows == 0 {
@@ -218,8 +218,8 @@ func (pg *PGSQLConn) WriteDump(jsonString []byte) error {
 		}
 	}
 	f := func() error {
-		if err := dbTX.Commit(); err != nil {
-			return err
+		if err3 := dbTX.Commit(); err != nil {
+			return err3
 		}
 		return nil
 	}

@@ -13,9 +13,9 @@ import (
 
 // FileDump Структура хранилища метрик в файле
 type FileDump struct {
+	logger  logger.CLogger
 	path    string
 	recover bool
-	logger  logger.CLogger
 }
 
 // ReadDump Функция чтения дампа метрик из файла
