@@ -75,7 +75,6 @@ func main() {
 	} else {
 		fmt.Println("Build commit: N/A")
 	}
-
 	err = http.ListenAndServe(controller.Config.ServerAddress, controller.Route())
 	if err != nil {
 		log.Error().Err(err)

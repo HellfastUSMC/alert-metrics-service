@@ -273,6 +273,7 @@ func (c *serverController) Route() *chi.Mux {
 	router.Use(middlewares.CheckHash(c.Logger))
 	router.Use(middlewares.Gzip(c.Logger))
 	router.Use(middlewares.ReqResLogging(c.Logger))
+	router.Use(middlewares.CheckCert(c.Logger, c.Config.CryptoCert))
 	router.Route("/", func(router chi.Router) {
 		router.Get("/", c.getAllStats)
 		router.Get("/ping", c.pingDB)

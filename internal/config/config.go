@@ -21,6 +21,8 @@ type SysConfig struct {
 	StoreInterval  int64  `env:"STORE_INTERVAL"`
 	Recover        bool   `env:"RESTORE"`
 	RateLimit      int64  `env:"RATE_LIMIT"`
+	CryptoKey      string `env:"CRYPTO_KEY"`
+	CryptoCert     string `env:"CRYPTO_CERT"`
 }
 
 // ParseServerFlags Функция парсинга флагов при запуске сервера
@@ -37,6 +39,7 @@ func (c *SysConfig) ParseServerFlags() error {
 		"DB connection string",
 	)
 	serverFlags.StringVar(&c.Key, "k", "", "Hash key string")
+	serverFlags.StringVar(&c.CryptoKey, "crypto-key", "", "Key string")
 	if err := serverFlags.Parse(os.Args[1:]); err != nil {
 		runtime.Goexit()
 		return err
@@ -52,6 +55,7 @@ func (c *SysConfig) ParseAgentFlags() error {
 	agentFlags.Int64Var(&c.PollInterval, "p", 10, "Metric poll interval in seconds")
 	agentFlags.StringVar(&c.Key, "k", "", "Hash key string")
 	agentFlags.Int64Var(&c.RateLimit, "l", 1, "Rate limit int")
+	agentFlags.StringVar(&c.CryptoKey, "crypto-key", "", "Key string")
 	if err := agentFlags.Parse(os.Args[1:]); err != nil {
 		runtime.Goexit()
 		return err
