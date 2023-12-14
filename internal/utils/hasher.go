@@ -8,8 +8,8 @@ import (
 
 // Hash Структура хешера
 type Hash struct {
-	hexHash    []byte
 	stringHash string
+	hexHash    []byte
 }
 
 // CalcHexHash Функция рассчета хеша по слайсу байт

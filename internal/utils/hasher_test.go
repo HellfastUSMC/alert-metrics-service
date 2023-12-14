@@ -12,8 +12,8 @@ func TestHash_CalcHexHash(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		args args
 		want string
+		args args
 	}{
 		{
 			name: "Calculating hash",
@@ -37,8 +37,8 @@ func TestHash_Hex(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		args args
 		want string
+		args args
 	}{
 		{
 			name: "Calculating hash",
@@ -63,8 +63,8 @@ func TestHash_String(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		args args
 		want string
+		args args
 	}{
 		{
 			name: "Calculating hash",
@@ -86,8 +86,8 @@ func TestHash_String(t *testing.T) {
 
 func TestNewHasher(t *testing.T) {
 	tests := []struct {
-		name string
 		want *Hash
+		name string
 	}{
 		{
 			name: "Test new hasher creation",

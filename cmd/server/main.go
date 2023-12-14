@@ -15,6 +15,12 @@ import (
 	"github.com/rs/zerolog"
 )
 
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
+)
+
 func main() {
 	log := zerolog.New(os.Stdout).Level(zerolog.TraceLevel).With().Timestamp().Logger()
 	conf, err := config.GetServerConfigData()
@@ -33,14 +39,14 @@ func main() {
 			defer runtime.Goexit()
 			for {
 				<-tickDump.C
-				if err := memStore.WriteDump(); err != nil {
-					log.Error().Err(err).Msg("dump write error")
+				if err1 := memStore.WriteDump(); err1 != nil {
+					log.Error().Err(err1).Msg("dump write error")
 				}
 			}
 		}()
 		if conf.Recover {
-			if err := memStore.ReadDump(); err != nil {
-				log.Error().Err(err).Msg("dump read error")
+			if err2 := memStore.ReadDump(); err2 != nil {
+				log.Error().Err(err2).Msg("dump read error")
 			}
 		}
 	}
@@ -54,6 +60,22 @@ func main() {
 		controller.Config.DBPath,
 		controller.Config.Recover,
 	))
+	if buildVersion != "" {
+		fmt.Printf("Build version: %s\n", buildVersion)
+	} else {
+		fmt.Println("Build version: N/A")
+	}
+	if buildDate != "" {
+		fmt.Printf("Build date: %s\n", buildDate)
+	} else {
+		fmt.Println("Build date: N/A")
+	}
+	if buildCommit != "" {
+		fmt.Printf("Build commit: %s\n", buildCommit)
+	} else {
+		fmt.Println("Build commit: N/A")
+	}
+
 	err = http.ListenAndServe(controller.Config.ServerAddress, controller.Route())
 	if err != nil {
 		log.Error().Err(err)

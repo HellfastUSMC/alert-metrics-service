@@ -28,12 +28,12 @@ type Dumper interface {
 
 // MemStorage Структура хранилища метрик для сервера
 type MemStorage struct {
-	Gauge     map[string]Gauge
-	Counter   map[string]Counter
-	PollCount Counter
 	Dumper    Dumper         `json:"-"`
 	Logger    logger.CLogger `json:"-"`
 	Mutex     *sync.Mutex    `json:"-"`
+	Gauge     map[string]Gauge
+	Counter   map[string]Counter
+	PollCount Counter
 }
 
 const (

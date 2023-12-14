@@ -181,8 +181,8 @@ func TestMemStorage_GetAllData(t *testing.T) {
 
 func TestNewMemStorage(t *testing.T) {
 	tests := []struct {
-		name string
 		want *MemStorage
+		name string
 	}{
 		{
 			name: "normal behaviour",

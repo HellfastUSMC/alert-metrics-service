@@ -5,20 +5,21 @@ package config
 import (
 	"flag"
 	"os"
+	"runtime"
 
 	"github.com/caarlos0/env/v6"
 )
 
 // SysConfig Структура конфигурации с указанием названий переменных окружения
 type SysConfig struct {
+	ServerAddress  string `env:"ADDRESS"`
+	DBPath         string `env:"DATABASE_DSN"`
+	DumpPath       string `env:"FILE_STORAGE_PATH"`
+	Key            string `env:"KEY"`
 	PollInterval   int64  `env:"POLL_INTERVAL"`
 	ReportInterval int64  `env:"REPORT_INTERVAL"`
-	ServerAddress  string `env:"ADDRESS"`
 	StoreInterval  int64  `env:"STORE_INTERVAL"`
-	DumpPath       string `env:"FILE_STORAGE_PATH"`
 	Recover        bool   `env:"RESTORE"`
-	DBPath         string `env:"DATABASE_DSN"`
-	Key            string `env:"KEY"`
 	RateLimit      int64  `env:"RATE_LIMIT"`
 }
 
@@ -37,7 +38,7 @@ func (c *SysConfig) ParseServerFlags() error {
 	)
 	serverFlags.StringVar(&c.Key, "k", "", "Hash key string")
 	if err := serverFlags.Parse(os.Args[1:]); err != nil {
-		os.Exit(1)
+		runtime.Goexit()
 		return err
 	}
 	return nil
@@ -52,7 +53,7 @@ func (c *SysConfig) ParseAgentFlags() error {
 	agentFlags.StringVar(&c.Key, "k", "", "Hash key string")
 	agentFlags.Int64Var(&c.RateLimit, "l", 1, "Rate limit int")
 	if err := agentFlags.Parse(os.Args[1:]); err != nil {
-		os.Exit(1)
+		runtime.Goexit()
 		return err
 	}
 	return nil
