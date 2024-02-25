@@ -3,6 +3,8 @@
 package config
 
 import (
+	"bufio"
+	"encoding/json"
 	"flag"
 	"os"
 	"runtime"
@@ -12,17 +14,17 @@ import (
 
 // SysConfig Структура конфигурации с указанием названий переменных окружения
 type SysConfig struct {
-	ServerAddress  string `env:"ADDRESS"`
-	DBPath         string `env:"DATABASE_DSN"`
-	DumpPath       string `env:"FILE_STORAGE_PATH"`
-	Key            string `env:"KEY"`
-	PollInterval   int64  `env:"POLL_INTERVAL"`
-	ReportInterval int64  `env:"REPORT_INTERVAL"`
-	StoreInterval  int64  `env:"STORE_INTERVAL"`
-	Recover        bool   `env:"RESTORE"`
+	ServerAddress  string `env:"ADDRESS" json:"address"`
+	DBPath         string `env:"DATABASE_DSN" json:"database_dsn"`
+	DumpPath       string `env:"FILE_STORAGE_PATH" json:"store_file"`
+	PollInterval   int64  `env:"POLL_INTERVAL" json:"poll_interval"`
+	ReportInterval int64  `env:"REPORT_INTERVAL" json:"report_interval"`
+	StoreInterval  int64  `env:"STORE_INTERVAL" json:"store_interval"`
+	Recover        bool   `env:"RESTORE" json:"restore"`
 	RateLimit      int64  `env:"RATE_LIMIT"`
-	CryptoKey      string `env:"CRYPTO_KEY"`
-	CryptoCert     string `env:"CRYPTO_CERT"`
+	CryptoKey      string `env:"CRYPTO_KEY" json:"crypto_key"`
+	FileConfigPath string `env:"CONFIG"`
+	Key            string
 }
 
 // ParseServerFlags Функция парсинга флагов при запуске сервера
@@ -38,8 +40,8 @@ func (c *SysConfig) ParseServerFlags() error {
 		"",
 		"DB connection string",
 	)
-	serverFlags.StringVar(&c.Key, "k", "", "Hash key string")
 	serverFlags.StringVar(&c.CryptoKey, "crypto-key", "", "Key string")
+	serverFlags.StringVar(&c.FileConfigPath, "config", "", "Config file path")
 	if err := serverFlags.Parse(os.Args[1:]); err != nil {
 		runtime.Goexit()
 		return err
@@ -53,9 +55,10 @@ func (c *SysConfig) ParseAgentFlags() error {
 	agentFlags.StringVar(&c.ServerAddress, "a", "localhost:8080", "Address and port of server")
 	agentFlags.Int64Var(&c.ReportInterval, "r", 2, "Report interval in seconds")
 	agentFlags.Int64Var(&c.PollInterval, "p", 10, "Metric poll interval in seconds")
-	agentFlags.StringVar(&c.Key, "k", "", "Hash key string")
 	agentFlags.Int64Var(&c.RateLimit, "l", 1, "Rate limit int")
 	agentFlags.StringVar(&c.CryptoKey, "crypto-key", "", "Key string")
+	agentFlags.StringVar(&c.FileConfigPath, "config", "", "Config file path")
+	agentFlags.StringVar(&c.FileConfigPath, "k", "", "key file path")
 	if err := agentFlags.Parse(os.Args[1:]); err != nil {
 		runtime.Goexit()
 		return err
@@ -69,7 +72,7 @@ func NewConfig() (*SysConfig, error) {
 	return &config, nil
 }
 
-// GetAgentConfigData Функция парсинга глобальных переменных и флагов для агента
+// GetAgentConfigData Функция парсинга глобальных переменных/флагов/файла конфигурации для агента
 func GetAgentConfigData() (*SysConfig, error) {
 	conf, err := NewConfig()
 	if err != nil {
@@ -79,13 +82,16 @@ func GetAgentConfigData() (*SysConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := env.Parse(conf); err != nil {
+	if err = env.Parse(conf); err != nil {
 		return conf, err
+	}
+	if conf.FileConfigPath != "" {
+		conf, err = readConfFile(conf.FileConfigPath, conf)
 	}
 	return conf, nil
 }
 
-// GetServerConfigData Функция парсинга глобальных переменных и флагов для сервера
+// GetServerConfigData Функция парсинга глобальных переменных/флагов/файла конфигурации для сервера
 func GetServerConfigData() (*SysConfig, error) {
 	conf, err := NewConfig()
 	if err != nil {
@@ -98,5 +104,29 @@ func GetServerConfigData() (*SysConfig, error) {
 	if err := env.Parse(conf); err != nil {
 		return conf, err
 	}
+	if conf.FileConfigPath != "" {
+		conf, err = readConfFile(conf.FileConfigPath, conf)
+	}
 	return conf, nil
+}
+
+func readConfFile(confFilePath string, config *SysConfig) (*SysConfig, error) {
+	confFile, err := os.OpenFile(confFilePath, os.O_RDONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+	scanner := bufio.NewScanner(confFile)
+	var strs []string
+	for scanner.Scan() {
+		strs = append(strs, scanner.Text())
+	}
+	err = confFile.Close()
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal([]byte(strs[len(strs)-2]), config)
+	if err != nil {
+		return nil, err
+	}
+	return config, nil
 }

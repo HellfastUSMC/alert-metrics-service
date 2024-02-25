@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/utils"
 	"net/http"
 	"os"
+	"os/signal"
 	"runtime"
 	"time"
 
@@ -75,6 +77,14 @@ func main() {
 	} else {
 		fmt.Println("Build commit: N/A")
 	}
+	sigChnl := make(chan os.Signal, 1)
+	signal.Notify(sigChnl)
+	go func() {
+		for {
+			s := <-sigChnl
+			utils.ExitHandler(s)
+		}
+	}()
 	err = http.ListenAndServe(controller.Config.ServerAddress, controller.Route())
 	if err != nil {
 		log.Error().Err(err)

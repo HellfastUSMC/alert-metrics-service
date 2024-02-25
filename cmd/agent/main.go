@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/utils"
 	"net/url"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/HellfastUSMC/alert-metrics-service/internal/agent-storage"
@@ -37,8 +41,26 @@ func main() {
 			controller.Config.ServerAddress,
 			controller.Config.PollInterval,
 			controller.Config.ReportInterval))
+	if buildVersion != "" {
+		fmt.Printf("Build version: %s\n", buildVersion)
+	} else {
+		fmt.Println("Build version: N/A")
+	}
+	if buildDate != "" {
+		fmt.Printf("Build date: %s\n", buildDate)
+	} else {
+		fmt.Println("Build date: N/A")
+	}
+	if buildCommit != "" {
+		fmt.Printf("Build commit: %s\n", buildCommit)
+	} else {
+		fmt.Println("Build commit: N/A")
+	}
 	tickPoll := time.NewTicker(time.Duration(controller.Config.PollInterval) * time.Second)
 	tickReport := time.NewTicker(time.Duration(controller.Config.ReportInterval) * time.Second)
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	defer stop()
 
 	jobsChan := make(chan int, conf.RateLimit)
 	jobNum := 0
@@ -88,5 +110,23 @@ func main() {
 			jobsChan <- jobNum
 		}
 	}()
-	wg.Wait()
+	sigChnl := make(chan os.Signal, 1)
+	signal.Notify(sigChnl)
+	go func() {
+		for {
+			s := <-sigChnl
+			utils.ExitHandler(s)
+		}
+	}()
+	<-ctx.Done()
+	stop()
+	log.Info().Msg("Agent about to stop working in 10 seconds...")
+	ctxTimeOut, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+	wg.Done()
+	wg.Done()
+	wg.Done()
+	<-ctxTimeOut.Done()
+	os.Exit(0)
+	//wg.Wait()
 }
