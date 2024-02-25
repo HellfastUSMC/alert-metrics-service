@@ -69,10 +69,10 @@ func main() {
 		defer wg.Done()
 		for jNum := range jobs {
 			controller.Logger.Info().Msg(fmt.Sprintf("Starting worker №%d with job number %d", id, jNum))
-			if err1 := controller.SendMetrics(conf.Key, "http://"+controller.Config.ServerAddress); err != nil {
+			if err1 := controller.SendMetrics(conf.KeyPath, "http://"+controller.Config.ServerAddress); err != nil {
 				log.Error().Err(err1).Msg("Error when sending metrics to server")
 				f := func() error {
-					err2 := controller.SendMetrics(conf.Key, "http://"+controller.Config.ServerAddress)
+					err2 := controller.SendMetrics(conf.KeyPath, "http://"+controller.Config.ServerAddress)
 					if err2 != nil {
 						return err
 					}

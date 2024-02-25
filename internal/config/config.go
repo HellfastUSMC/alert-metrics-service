@@ -24,7 +24,7 @@ type SysConfig struct {
 	RateLimit      int64  `env:"RATE_LIMIT"`
 	CryptoKey      string `env:"CRYPTO_KEY" json:"crypto_key"`
 	FileConfigPath string `env:"CONFIG"`
-	Key            string
+	KeyPath        string `env:"KEY_PATH" json:"key_path"`
 }
 
 // ParseServerFlags Функция парсинга флагов при запуске сервера
@@ -58,7 +58,7 @@ func (c *SysConfig) ParseAgentFlags() error {
 	agentFlags.Int64Var(&c.RateLimit, "l", 1, "Rate limit int")
 	agentFlags.StringVar(&c.CryptoKey, "crypto-key", "", "Key string")
 	agentFlags.StringVar(&c.FileConfigPath, "config", "", "Config file path")
-	agentFlags.StringVar(&c.FileConfigPath, "k", "", "key file path")
+	agentFlags.StringVar(&c.KeyPath, "k", "", "key file path")
 	if err := agentFlags.Parse(os.Args[1:]); err != nil {
 		runtime.Goexit()
 		return err
