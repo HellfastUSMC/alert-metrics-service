@@ -87,6 +87,9 @@ func GetAgentConfigData() (*SysConfig, error) {
 	}
 	if conf.FileConfigPath != "" {
 		conf, err = readConfFile(conf.FileConfigPath, conf)
+		if err != nil {
+			return conf, err
+		}
 	}
 	return conf, nil
 }
@@ -106,6 +109,9 @@ func GetServerConfigData() (*SysConfig, error) {
 	}
 	if conf.FileConfigPath != "" {
 		conf, err = readConfFile(conf.FileConfigPath, conf)
+		if err != nil {
+			return conf, err
+		}
 	}
 	return conf, nil
 }
