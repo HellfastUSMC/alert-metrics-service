@@ -3,7 +3,7 @@ package controllers
 type agentHandler interface {
 	RenewMetrics()
 	RenewMemCPUMetrics()
-	SendBatchMetrics(key string, URL string, KeyPath string) error
+	SendBatchMetrics(key string, URL string) error
 }
 
 const (
