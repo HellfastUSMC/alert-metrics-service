@@ -161,7 +161,7 @@ func BenchmarkMetric_SendBatchMetrics(b *testing.B) {
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	b.ResetTimer()
-	if err := m.SendBatchMetrics("", server.URL); err != nil {
+	if err := m.SendBatchMetrics("", server.URL, ""); err != nil {
 		b.Error(err)
 	}
 }
@@ -187,7 +187,7 @@ func TestMetrics_SendMetrics(t *testing.T) {
 				Alloc: tt.fields.Alloc,
 			}
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-			if err := m.SendBatchMetrics("", server.URL); (err != nil) != tt.wantErr {
+			if err := m.SendBatchMetrics("", server.URL, ""); (err != nil) != tt.wantErr {
 				t.Errorf("SendMetrics() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

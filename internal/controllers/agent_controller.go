@@ -34,7 +34,7 @@ func (c *agentController) RenewMemCPUMetrics() {
 
 // SendMetrics Функция представитель для отправки метрик
 func (c *agentController) SendMetrics(key string, url string) error {
-	err := c.Storage.SendBatchMetrics(key, url)
+	err := c.Storage.SendBatchMetrics(key, url, c.Config.KeyPath)
 	if err != nil {
 		return err
 	}

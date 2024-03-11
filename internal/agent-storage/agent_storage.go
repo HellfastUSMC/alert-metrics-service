@@ -5,11 +5,16 @@ import (
 	"bytes"
 	"compress/flate"
 	"context"
+	crand "crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
+	"os"
 	"reflect"
 	"runtime"
 	"strings"
@@ -114,7 +119,7 @@ func (m *Metric) RenewMemCPUMetrics() {
 }
 
 // SendBatchMetrics Функция отправки метрик на сервер пачкой
-func (m *Metric) SendBatchMetrics(key string, hostAndPort string) error {
+func (m *Metric) SendBatchMetrics(key string, hostAndPort string, publicKeyPath string) error {
 	fieldsValues := reflect.ValueOf(m).Elem()
 	fieldsTypes := reflect.TypeOf(m).Elem()
 	var metricsList []controllers.Metrics
@@ -139,16 +144,34 @@ func (m *Metric) SendBatchMetrics(key string, hostAndPort string) error {
 	if metricsList == nil {
 		return fmt.Errorf("nothing to send, metrics list is empty")
 	}
-	jsonByte, _ := json.Marshal(metricsList)
+	jsonByte, err := json.Marshal(metricsList)
+	if err != nil {
+		return fmt.Errorf("can't marshal data - %w", err)
+	}
+
+	publicKey, err := os.ReadFile(publicKeyPath)
+	if err != nil {
+		return fmt.Errorf("can't read public key - %w", err)
+	}
+	publicKeyBlock, _ := pem.Decode(publicKey)
+	publicKeyParse, err := x509.ParsePKIXPublicKey(publicKeyBlock.Bytes)
+	if err != nil {
+		return fmt.Errorf("can't parse public key - %w", err)
+	}
+	encodedData, err := rsa.EncryptPKCS1v15(crand.Reader, publicKeyParse.(*rsa.PublicKey), jsonByte)
+	if err != nil {
+		return fmt.Errorf("can't encode data with public key - %w", err)
+	}
+
 	var buff bytes.Buffer
 	w, err := flate.NewWriter(&buff, flate.BestCompression)
 	if err != nil {
 		return fmt.Errorf("can't create new writer - %w", err)
 	}
 
-	_, err = w.Write(jsonByte)
+	_, err = w.Write(encodedData)
 	if err != nil {
-		return fmt.Errorf("can't write compress JSON in gzip - %w", err)
+		return fmt.Errorf("can't write compress in gzip - %w", err)
 	}
 	err = w.Close()
 	if err != nil {

@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/utils"
 	"net/http"
 	"os"
+	"os/signal"
 	"runtime"
 	"time"
 
@@ -60,22 +62,32 @@ func main() {
 		controller.Config.DBPath,
 		controller.Config.Recover,
 	))
-	if buildVersion != "" {
-		fmt.Printf("Build version: %s\n", buildVersion)
-	} else {
+	switch buildVersion {
+	case "":
 		fmt.Println("Build version: N/A")
+	default:
+		fmt.Printf("Build version: %s\n", buildVersion)
 	}
-	if buildDate != "" {
-		fmt.Printf("Build date: %s\n", buildDate)
-	} else {
+	switch buildDate {
+	case "":
 		fmt.Println("Build date: N/A")
+	default:
+		fmt.Printf("Build date: %s\n", buildDate)
 	}
-	if buildCommit != "" {
-		fmt.Printf("Build commit: %s\n", buildCommit)
-	} else {
+	switch buildCommit {
+	case "":
 		fmt.Println("Build commit: N/A")
+	default:
+		fmt.Printf("Build commit: %s\n", buildCommit)
 	}
-
+	sigChnl := make(chan os.Signal, 1)
+	signal.Notify(sigChnl)
+	go func() {
+		for {
+			s := <-sigChnl
+			utils.ExitHandler(s)
+		}
+	}()
 	err = http.ListenAndServe(controller.Config.ServerAddress, controller.Route())
 	if err != nil {
 		log.Error().Err(err)
