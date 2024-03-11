@@ -33,6 +33,7 @@ func CheckCert(log logger.CLogger, privateKeyPath string) func(h http.Handler) h
 			body, err := io.ReadAll(req.Body)
 			if err != nil {
 				log.Error().Err(err).Msg("")
+				return
 			}
 			decodedData, err := rsa.DecryptPKCS1v15(rand.Reader, privateKeyBytes, body)
 			if err != nil {
@@ -41,6 +42,10 @@ func CheckCert(log logger.CLogger, privateKeyPath string) func(h http.Handler) h
 			}
 			req.ContentLength = int64(len(decodedData))
 			req.Body = io.NopCloser(bytes.NewBuffer(decodedData))
+			if err := req.Body.Close(); err != nil {
+				http.Error(res, "Cannot close request body", http.StatusInternalServerError)
+				return
+			}
 			h.ServeHTTP(res, req)
 		})
 	}

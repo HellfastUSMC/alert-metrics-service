@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/HellfastUSMC/alert-metrics-service/internal/utils"
 	"net/url"
 	"os"
 	"os/signal"
@@ -14,6 +13,7 @@ import (
 	"github.com/HellfastUSMC/alert-metrics-service/internal/agent-storage"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/config"
 	"github.com/HellfastUSMC/alert-metrics-service/internal/controllers"
+	"github.com/HellfastUSMC/alert-metrics-service/internal/utils"
 	"github.com/rs/zerolog"
 )
 
@@ -69,18 +69,21 @@ func main() {
 		defer wg.Done()
 		for jNum := range jobs {
 			controller.Logger.Info().Msg(fmt.Sprintf("Starting worker №%d with job number %d", id, jNum))
-			if err1 := controller.SendMetrics(conf.KeyPath, "http://"+controller.Config.ServerAddress); err != nil {
-				log.Error().Err(err1).Msg("Error when sending metrics to server")
-				f := func() error {
-					err2 := controller.SendMetrics(conf.KeyPath, "http://"+controller.Config.ServerAddress)
-					if err2 != nil {
-						return err
-					}
-					return nil
-				}
-				err = agentstorage.RetryFunc(&log, intervals, errorsList, f)
-				log.Error().Err(err).Msg(fmt.Sprintf("Error after %d retries", len(intervals)+1))
+			if err = utils.Worker(controller.SendMetrics, controller.Logger, errorsList, intervals, conf.KeyPath, conf.ServerAddress); err != nil {
+				log.Error().Err(err)
 			}
+			//if err1 := controller.SendMetrics(conf.KeyPath, "http://"+controller.Config.ServerAddress); err != nil {
+			//	log.Error().Err(err1).Msg("Error when sending metrics to server")
+			//	f := func() error {
+			//		err2 := controller.SendMetrics(conf.KeyPath, "http://"+controller.Config.ServerAddress)
+			//		if err2 != nil {
+			//			return err
+			//		}
+			//		return nil
+			//	}
+			//	err = agentstorage.RetryFunc(&log, intervals, errorsList, f)
+			//	log.Error().Err(err).Msg(fmt.Sprintf("Error after %d retries", len(intervals)+1))
+			//}
 			jobNum += 1
 		}
 	}
@@ -121,12 +124,7 @@ func main() {
 	<-ctx.Done()
 	stop()
 	log.Info().Msg("Agent about to stop working in 10 seconds...")
-	ctxTimeOut, cancel := context.WithTimeout(ctx, time.Second*10)
-	defer cancel()
-	wg.Done()
-	wg.Done()
-	wg.Done()
-	<-ctxTimeOut.Done()
+	wg.Wait()
 	os.Exit(0)
 	//wg.Wait()
 }
