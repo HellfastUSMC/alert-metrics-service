@@ -69,7 +69,7 @@ func main() {
 		defer wg.Done()
 		for jNum := range jobs {
 			controller.Logger.Info().Msg(fmt.Sprintf("Starting worker №%d with job number %d", id, jNum))
-			if err = utils.Worker(controller.SendMetrics, controller.Logger, errorsList, intervals, conf.KeyPath, conf.ServerAddress); err != nil {
+			if err = utils.Worker(agentstorage.RetryFunc, controller.SendMetrics, controller.Logger, errorsList, intervals, conf.KeyPath, conf.ServerAddress); err != nil {
 				log.Error().Err(err)
 			}
 			//if err1 := controller.SendMetrics(conf.KeyPath, "http://"+controller.Config.ServerAddress); err != nil {
